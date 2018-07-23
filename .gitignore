@@ -1,0 +1,8 @@
+.idea/
+out/
+*.iml
+lichess_token.txt
+*.exe
+*.dll
+leelaz_opencl_tuning
+weights.txt
