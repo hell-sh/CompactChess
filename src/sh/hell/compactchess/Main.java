@@ -10,6 +10,8 @@ import sh.hell.compactchess.game.Move;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Scanner;
 
 public class Main
@@ -143,7 +145,7 @@ public class Main
 		}
 		while(true);
 		System.out.println();
-		convertNotationTo(Game.fromPGN(pgn.toString()).get(0));
+		convertNotationTo(Game.fromPGN(pgn.toString()));
 	}
 
 	public static void convertNotationFromPGNFile() throws ChessException, IOException
@@ -153,11 +155,13 @@ public class Main
 		System.out.print("File: ");
 		final String file = new Scanner(System.in).useDelimiter("\\n").next();
 		System.out.println();
-		final Scanner scanner = new Scanner(file);
+		final InputStream is = new FileInputStream(file);
+		final Scanner scanner = new Scanner(is);
 		scanner.useDelimiter("\\A");
 		String content = scanner.next();
 		scanner.close();
-		convertNotationTo(Game.fromPGN(content).get(0));
+		is.close();
+		convertNotationTo(Game.fromPGN(content));
 	}
 
 	public static void convertNotationFromCGNFile() throws ChessException, IOException
@@ -167,14 +171,12 @@ public class Main
 		System.out.print("File: ");
 		final String file = new Scanner(System.in).useDelimiter("\\n").next();
 		System.out.println();
-		convertNotationTo(Game.fromCGN(new FileInputStream(file)).get(0));
+		convertNotationTo(Game.fromCGN(new FileInputStream(file)));
 	}
 
 	public static void convertNotationTo(final Game game) throws ChessException, IOException
 	{
-		System.out.println("# Compact Chess > Convert Notation > Target");
-		System.out.println();
-		System.out.println("What do you want to convert to?");
+		System.out.println("# Compact Chess > Convert Notation > Game to...");
 		System.out.println();
 		System.out.println("- [F]EN");
 		System.out.println("- [P]GN");
@@ -237,6 +239,64 @@ public class Main
 		while(true);
 	}
 
+	public static void convertNotationTo(final ArrayList<Game> games) throws ChessException, IOException
+	{
+		if(games.size() == 0)
+		{
+			System.out.println("No game recognized.\n");
+			convertNotation();
+		}
+		else if(games.size() == 1)
+		{
+			convertNotationTo(games.get(0));
+		}
+		else
+		{
+			System.out.println("# Compact Chess > Convert Notation > Games to...");
+			System.out.println();
+			System.out.println("- [P]GN");
+			System.out.println("- [C]GN File");
+			System.out.println("- E[x]it");
+			System.out.println();
+			do
+			{
+				System.out.print("Your choice: ");
+				final char selection = (char) System.in.read();
+				while(System.in.available() > 0)
+				{
+					System.in.read();
+				}
+				System.out.println();
+				switch(selection)
+				{
+
+					case 'P':
+					case 'p':
+						for(Game game : games)
+						{
+							System.out.println(game.toPGN());
+
+							System.out.println();
+						}
+
+						convertNotationTo(games);
+						return;
+
+					case 'C':
+					case 'c':
+						convertNotationToCGNFile(games);
+						return;
+
+					case 'X':
+					case 'x':
+						convertNotation();
+						return;
+				}
+			}
+			while(true);
+		}
+	}
+
 	public static void convertNotationToCGNFile(final Game game) throws ChessException, IOException
 	{
 		System.out.println("# Compact Chess > Convert Notation > To CGN File");
@@ -248,6 +308,22 @@ public class Main
 		game.toCGN(os);
 		os.close();
 		convertNotationTo(game);
+	}
+
+	public static void convertNotationToCGNFile(final ArrayList<Game> games) throws ChessException, IOException
+	{
+		System.out.println("# Compact Chess > Convert Notation > To CGN File");
+		System.out.println();
+		System.out.print("File: ");
+		final String file = new Scanner(System.in).useDelimiter("\\n").next();
+		System.out.println();
+		FileOutputStream os = new FileOutputStream(file);
+		for(Game game : games)
+		{
+			game.toCGN(os);
+		}
+		os.close();
+		convertNotationTo(games);
 	}
 
 	public static void engineOperations() throws IOException, ChessException

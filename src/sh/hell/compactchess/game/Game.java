@@ -66,9 +66,14 @@ public class Game
 		for(final String pgnGame : pgn.split("\n\n"))
 		{
 			final Game game = new Game();
+			GameStatus _status = null;
+			TimeControl _timeControl = null;
+			byte excluded = 0;
+			byte annotation = 0;
+			Move move = null;
 			for(final String line : pgnGame.split("\n"))
 			{
-				if(line.matches(pgnTagRegex))
+				if(_status == null && line.matches(pgnTagRegex))
 				{
 					final Matcher matcher = Pattern.compile("\\[([A-Za-z0-9]+) \"(.*[^\\\\])\"\\]").matcher(line);
 					if(matcher.find() && matcher.groupCount() == 2)
@@ -78,14 +83,14 @@ public class Game
 				}
 				else
 				{
-					final GameStatus _status = game.status;
-					final TimeControl _timeControl = game.timeControl;
-					game.status = GameStatus.BUILDING;
-					game.timeControl = TimeControl.UNLIMITED;
-					game.start();
-					byte excluded = 0;
-					byte annotation = 0;
-					Move move = null;
+					if(_status == null)
+					{
+						_status = game.status;
+						_timeControl = game.timeControl;
+						game.status = GameStatus.BUILDING;
+						game.timeControl = TimeControl.UNLIMITED;
+						game.start();
+					}
 					for(String section : line.split(" "))
 					{
 						section = section.trim();
@@ -137,19 +142,28 @@ public class Game
 							}
 						}
 					}
-					if(_status != GameStatus.BUILDING)
+				}
+			}
+			if(_status != null)
+			{
+				if(_status != GameStatus.BUILDING)
+				{
+					game.status = _status;
+					if(game.endReason == EndReason.UNTERMINATED)
 					{
-						game.status = _status;
-						if(game.endReason == EndReason.UNTERMINATED && game.status != GameStatus.DRAW)
+						if(game.status == GameStatus.DRAW)
+						{
+							game.endReason = EndReason.DRAW_AGREEMENT;
+						}
+						else if(game.status == GameStatus.WHITE_WINS || game.status == GameStatus.BLACK_WINS)
 						{
 							game.endReason = EndReason.RESIGNATION;
 						}
 					}
-					game.timeControl = _timeControl;
-					games.add(game);
-					break;
 				}
+				game.timeControl = _timeControl;
 			}
+			games.add(game);
 		}
 		return games;
 	}
@@ -312,17 +326,26 @@ public class Game
 			else if(val.contains("+"))
 			{
 				String[] timeArr = val.split("\\+");
-				if(timeArr.length == 2)
-				{
-					game.timeControl = TimeControl.INCREMENT;
-					game.whitemsecs = Long.valueOf(timeArr[0]) * 1000;
-					game.blackmsecs = game.whitemsecs;
-					game.increment = Long.valueOf(timeArr[1]) * 1000;
-				}
-				else
+				if(timeArr.length != 2)
 				{
 					throw new ChessException("Invalid TimeControl: " + val);
 				}
+				game.timeControl = TimeControl.INCREMENT;
+				game.increment = Long.valueOf(timeArr[1].replace("seconds", "").trim()) * 1000;
+				if(timeArr[0].contains(":"))
+				{
+					String[] timeArr2 = timeArr[0].trim().split(":");
+					if(timeArr2.length != 2)
+					{
+						throw new ChessException("Invalid TimeControl: " + val);
+					}
+					game.whitemsecs = (((Long.valueOf(timeArr2[0]) * 60) + Long.valueOf(timeArr2[1])) * 60) * 1000;
+				}
+				else
+				{
+					game.whitemsecs = Long.valueOf(timeArr[0].trim()) * 1000;
+				}
+				game.blackmsecs = game.whitemsecs;
 			}
 			else
 			{
@@ -1106,14 +1129,14 @@ public class Game
 		}
 		if(this.status == GameStatus.WHITE_WINS)
 		{
-			if(!compact || this.endReason != EndReason.RESIGNATION)
+			if(!compact || this.endReason == EndReason.RESIGNATION)
 			{
 				tags.put("Result", "1-0");
 			}
 		}
 		else if(this.status == GameStatus.BLACK_WINS)
 		{
-			if(!compact || this.endReason != EndReason.RESIGNATION)
+			if(!compact || this.endReason == EndReason.RESIGNATION)
 			{
 				tags.put("Result", "0-1");
 			}

@@ -497,7 +497,7 @@ public class Move
 				break;
 			default:
 				final Piece piece = _game.square(fromSquare).getPiece();
-				final boolean capture = toSquare.hasPiece();
+				final boolean capture = _game.square(toSquare).hasPiece();
 				if(piece.type != PieceType.PAWN)
 				{
 					if(variation == AlgebraicNotationVariation.FAN)
