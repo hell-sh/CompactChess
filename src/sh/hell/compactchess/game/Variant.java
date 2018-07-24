@@ -8,6 +8,7 @@ public enum Variant
 	KING_OF_THE_HILL("King of the Hill", "kingofthehill", "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"),
 	RACING_KINGS("Racing Kings", "racingkings", "8/8/8/8/8/8/krbnNBRK/qrbnNBRQ w - - 0 1"),
 	HORDE("Horde", "horde", "rnbqkbnr/pppppppp/8/1PP2PP1/PPPPPPPP/PPPPPPPP/PPPPPPPP/PPPPPPPP w kq - 0 1");
+	// TODO: Chess960
 	// TODO: Crazyhouse
 	// TODO: Atomic
 

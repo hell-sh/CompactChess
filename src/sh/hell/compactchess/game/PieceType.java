@@ -33,7 +33,7 @@ public enum PieceType
 		displayChar = displayChar.toUpperCase();
 		for(PieceType pieceType : PieceType.values())
 		{
-			if(pieceType.displayChar.equals(displayChar))
+			if(pieceType.displayChar.equalsIgnoreCase(displayChar))
 			{
 				return pieceType;
 			}

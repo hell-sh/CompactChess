@@ -1,7 +1,7 @@
 .idea/
 out/
+test_libs/
 *.iml
-lichess_token.txt
 *.exe
 *.dll
 leelaz_opencl_tuning
