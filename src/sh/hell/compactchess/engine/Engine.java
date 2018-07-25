@@ -266,7 +266,7 @@ public class Engine extends Thread
 			{
 				return null;
 			}
-			return evaluatingGame.move(this.bestMove);
+			return evaluatingGame.uciMove(this.bestMove);
 		}
 	}
 
@@ -278,7 +278,7 @@ public class Engine extends Thread
 			{
 				return null;
 			}
-			return evaluatingGame.move(this.ponder);
+			return evaluatingGame.uciMove(this.ponder);
 		}
 	}
 

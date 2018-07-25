@@ -2,7 +2,7 @@ package sh.hell.compactchess.game;
 
 import sh.hell.compactchess.exceptions.ChessException;
 import sh.hell.compactchess.exceptions.InvalidFENException;
-import sh.hell.compactchess.exceptions.InvalidUCINotationException;
+import sh.hell.compactchess.exceptions.InvalidMoveException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -137,7 +137,7 @@ public class Game
 							}
 							else if(!section.equals("") && !section.endsWith(".") && !section.equals("1-0") && !section.equals("0-1") && !section.equals("1/2-1/2") && !section.equals("*"))
 							{
-								move = game.ANmove(section);
+								move = game.move(section);
 								move.commit(false, dontCalculate);
 							}
 						}
@@ -282,7 +282,12 @@ public class Game
 		}
 		else if(key.equalsIgnoreCase("Variant"))
 		{
-			game.setVariant(Variant.fromName(val));
+			Variant variant = Variant.fromName(val);
+			if(variant == null)
+			{
+				throw new ChessException("Unknown variant: " + val);
+			}
+			game.setVariant(variant);
 		}
 		else if(key.equalsIgnoreCase("Result"))
 		{
@@ -360,7 +365,7 @@ public class Game
 		}
 	}
 
-	public Move move(String uci) throws ChessException
+	public Move uciMove(String uci) throws ChessException
 	{
 		if(uci == null || uci.equals("(none)"))
 		{
@@ -368,7 +373,7 @@ public class Game
 		}
 		if(uci.length() != 4 && uci.length() != 5)
 		{
-			throw new InvalidUCINotationException(uci);
+			throw new InvalidMoveException("Invalid UCI notation: " + uci);
 		}
 		if(uci.length() == 5)
 		{
@@ -380,38 +385,48 @@ public class Game
 		}
 	}
 
-	public Move ANmove(String an) throws ChessException
+	@Deprecated // Use Game.move instead.
+	public Move anMove(String an) throws ChessException
 	{
-		an = an.replace("x", "").replace("+", "").replace("?", "").replace("!", "").replace("#", "").replace("=", "").replace("(", "").replace(")", "");
-		if(an.equalsIgnoreCase("O-O-O") || an.equals("0-0-0"))
+		return this.move(an);
+	}
+
+	public Move move(String move) throws ChessException
+	{
+		if(move == null || move.equals("(none)"))
 		{
-			return this.move(toMove == Color.WHITE ? "e1c1" : "e8c8");
+			return null;
 		}
-		else if(an.equalsIgnoreCase("O-O") || an.equals("0-0"))
+		move = move.replace("x", "").replace("+", "").replace("?", "").replace("!", "").replace("#", "").replace("=", "").replace("(", "").replace(")", "");
+		if(move.equalsIgnoreCase("O-O-O") || move.equals("0-0-0"))
 		{
-			return this.move(toMove == Color.WHITE ? "e1g1" : "e8g8");
+			return this.uciMove(toMove == Color.WHITE ? "e1c1" : "e8c8");
 		}
-		an = an.replace("-", "");
+		else if(move.equalsIgnoreCase("O-O") || move.equals("0-0"))
+		{
+			return this.uciMove(toMove == Color.WHITE ? "e1g1" : "e8g8");
+		}
+		move = move.replace("-", "");
 		PieceType promoteTo = null;
 		final Square toSquare;
 		String piece;
-		if(an.substring(an.length() - 1).matches("[12345678]"))
+		if(move.substring(move.length() - 1).matches("[12345678]"))
 		{
-			toSquare = this.square(an.substring(an.length() - 2));
-			piece = an.substring(0, an.length() - 2);
+			toSquare = this.square(move.substring(move.length() - 2));
+			piece = move.substring(0, move.length() - 2);
 		}
 		else
 		{
 			for(PieceType pt : PieceType.values())
 			{
-				if(pt.notationChar.equals(an.substring(an.length() - 1)) || pt.whiteSymbol.equals(an.substring(an.length() - 1)) || pt.blackSymbol.equals(an.substring(an.length() - 1)))
+				if(pt.notationChar.equalsIgnoreCase(move.substring(move.length() - 1)) || pt.whiteSymbol.equals(move.substring(move.length() - 1)) || pt.blackSymbol.equals(move.substring(move.length() - 1)))
 				{
 					promoteTo = pt;
 					break;
 				}
 			}
-			toSquare = this.square(an.substring(an.length() - 3, an.length() - 1));
-			piece = an.substring(0, an.length() - 3);
+			toSquare = this.square(move.substring(move.length() - 3, move.length() - 1));
+			piece = move.substring(0, move.length() - 3);
 		}
 		final Square fromSquare;
 		PieceType pieceType = PieceType.PAWN;
@@ -444,7 +459,7 @@ public class Game
 						for(Piece p : this.pieces)
 						{
 							final Square pSquare = p.getSquare();
-							if(p.color == this.toMove && p.type == pieceType && pSquare.rank == rank && p.getControlledSquares(this).contains(toSquare))
+							if(p.color == this.toMove && p.type == pieceType && pSquare.rank == rank && p.getControlledSquares(this).contains(toSquare) && new Move(this, p.getSquare(), toSquare).isLegal())
 							{
 								squares.add(pSquare);
 							}
@@ -459,7 +474,7 @@ public class Game
 						for(Piece p : this.pieces)
 						{
 							final Square pSquare = p.getSquare();
-							if(p.color == this.toMove && p.type == pieceType && pSquare.file == file && p.getControlledSquares(this).contains(toSquare))
+							if(p.color == this.toMove && p.type == pieceType && pSquare.file == file && p.getControlledSquares(this).contains(toSquare) && new Move(this, p.getSquare(), toSquare).isLegal())
 							{
 								squares.add(pSquare);
 							}
@@ -473,7 +488,7 @@ public class Game
 				{
 					for(Piece p : this.pieces)
 					{
-						if(p.color == this.toMove && p.type == pieceType && p.getControlledSquares(this).contains(toSquare))
+						if(p.color == this.toMove && p.type == pieceType && p.getControlledSquares(this).contains(toSquare) && new Move(this, p.getSquare(), toSquare).isLegal())
 						{
 							squares.add(p.getSquare());
 						}
@@ -482,11 +497,11 @@ public class Game
 			}
 			if(squares.size() == 0)
 			{
-				throw new ChessException("No such piece '" + an.substring(0, an.length() - 2) + "' for " + an);
+				throw new InvalidMoveException("No such piece '" + move.substring(0, move.length() - 2) + "' for " + move);
 			}
 			if(squares.size() > 1)
 			{
-				throw new ChessException("Ambiguous piece '" + an.substring(0, an.length() - 2) + "' for " + an);
+				throw new InvalidMoveException("Ambiguous piece '" + move.substring(0, move.length() - 2) + "' for " + move);
 			}
 			fromSquare = squares.get(0);
 		}
@@ -495,6 +510,10 @@ public class Game
 
 	public Game setVariant(Variant variant)
 	{
+		if(variant == null)
+		{
+			throw new RuntimeException("Variant can't be null.");
+		}
 		this.variant = variant;
 		return this;
 	}

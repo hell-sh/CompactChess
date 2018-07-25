@@ -154,14 +154,17 @@ public class Main
 		System.out.println();
 		System.out.print("File: ");
 		final String file = new Scanner(System.in).useDelimiter("\\n").next();
-		System.out.println();
+		System.out.println("Reading content...");
 		final InputStream is = new FileInputStream(file);
 		final Scanner scanner = new Scanner(is);
 		scanner.useDelimiter("\\A");
 		String content = scanner.next();
 		scanner.close();
 		is.close();
-		convertNotationTo(Game.fromPGN(content));
+		System.out.println("Parsing PGN...");
+		ArrayList<Game> games = Game.fromPGN(content);
+		System.out.println();
+		convertNotationTo(games);
 	}
 
 	public static void convertNotationFromCGNFile() throws ChessException, IOException

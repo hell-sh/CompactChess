@@ -23,6 +23,7 @@ import static junit.framework.TestCase.assertFalse;
 import static junit.framework.TestCase.assertNotNull;
 import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNull;
 
 public class Tests
 {
@@ -51,16 +52,20 @@ public class Tests
 	public void enPassant() throws ChessException
 	{
 		System.out.println("En Passant\n");
-		Game game = new Game().loadFEN("8/8/8/8/1p6/8/P7/8 w").start();
+		Game game = new Game().loadFEN("8/8/8/8/1p6/8/P6P/8 w - -").start();
 		visualize(game);
-		game.move("a2a4").commit();
+		game.uciMove("h2h3").commit();
+		visualize(game);
+		assertNull(game.enPassantSquare);
+		game.opponentToMove();
+		game.uciMove("a2a4").commit();
 		visualize(game);
 		assertEquals("a3", game.enPassantSquare.getAlgebraicNotation());
-		game.move("b4a3").commit();
+		game.uciMove("b4a3").commit();
 		visualize(game);
 		synchronized(game.pieces)
 		{
-			assertEquals(1, game.pieces.size());
+			assertEquals(2, game.pieces.size());
 			Piece piece = game.pieces.get(0);
 			assertEquals(PieceType.PAWN, piece.type);
 			assertEquals(Color.BLACK, piece.color);
@@ -79,21 +84,21 @@ public class Tests
 		assertEquals(Color.WHITE, game.pieces.get(0).color);
 		assertEquals(PieceType.PAWN, game.pieces.get(1).type);
 		assertEquals(Color.BLACK, game.pieces.get(1).color);
-		Move move = game.move("h7h8q");
+		Move move = game.uciMove("h7h8q");
 		move.toUCI();
 		move.commit();
 		visualize(game);
 		assertEquals(2, game.pieces.size());
 		assertEquals(PieceType.QUEEN, game.pieces.get(0).type);
 		assertEquals(Color.WHITE, game.pieces.get(0).color);
-		move = game.move("h2h1q");
+		move = game.uciMove("h2h1q");
 		move.toUCI();
 		move.commit();
 		visualize(game);
 		assertEquals(2, game.pieces.size());
 		assertEquals(PieceType.QUEEN, game.pieces.get(1).type);
 		assertEquals(Color.BLACK, game.pieces.get(1).color);
-		move = game.move("h8h1");
+		move = game.uciMove("h8h1");
 		move.toUCI();
 		move.commit();
 		visualize(game);
@@ -113,10 +118,10 @@ public class Tests
 		assertTrue(game.blackCanCastle);
 		assertFalse(game.blackCanCastleQueenside);
 		visualize(game);
-		assertFalse(game.move("e8g8").isLegal());
-		game.move("d5h5").commit();
+		assertFalse(game.uciMove("e8g8").isLegal());
+		game.uciMove("d5h5").commit();
 		visualize(game);
-		Move move = game.move("e1c1");
+		Move move = game.uciMove("e1c1");
 		move.commit(true, false);
 		visualize(game);
 		assertFalse(move.isLegal());
@@ -131,7 +136,7 @@ public class Tests
 				}
 			}
 		}
-		game.move("e8g8").commit();
+		game.uciMove("e8g8").commit();
 		visualize(game);
 		synchronized(game.pieces)
 		{
@@ -152,7 +157,7 @@ public class Tests
 		System.out.println("Legality\n");
 		final Game game = new Game().loadFEN("8/8/8/8/4b3/8/6P1/7K w").start();
 		visualize(game);
-		final Move move = game.move("g2g3");
+		final Move move = game.uciMove("g2g3");
 		move.commit(true, false);
 		visualize(game);
 		assertFalse(move.isLegal());
@@ -162,17 +167,17 @@ public class Tests
 	public void check() throws ChessException
 	{
 		System.out.println("Check\n");
-		final Game game = new Game().loadFEN("5k2/8/8/8/8/8/8/4K2R w K").start();
+		Game game = new Game().loadFEN("5k2/8/8/8/8/8/8/4K2R w K").start();
 		visualize(game);
 		assertFalse(game.isCheck());
 		assertNotEquals(EndReason.CHECKMATE, game.endReason);
-		Move move = game.move("e1g1");
+		Move move = game.uciMove("e1g1");
 		move.commit();
 		visualize(game);
 		assertTrue(move.isLegal());
 		assertTrue(move.isCheck());
 		assertNotEquals(EndReason.CHECKMATE, game.endReason);
-		move = game.move("f8f7");
+		move = game.uciMove("f8f7");
 		move.commit(true, false);
 		visualize(game);
 		assertFalse(move.isLegal());
@@ -201,7 +206,7 @@ public class Tests
 		game = new Game().loadFEN("5r2/3q2kp/6p1/1bpBP1K1/1p1p3P/6P1/3P1P2/r7 b - - 0 40").start();
 		visualize(game);
 		assertFalse(game.isCheck());
-		game.move("d7f5").commit();
+		game.uciMove("d7f5").commit();
 		visualize(game);
 		assertTrue(game.isCheck());
 		assertEquals(EndReason.CHECKMATE, game.endReason);
@@ -215,7 +220,7 @@ public class Tests
 		System.out.println("Draw by Insufficient Material\n");
 		final Game game = new Game().loadFEN("4k3/8/2b5/8/4P3/8/6B1/4K3 b").start();
 		visualize(game);
-		game.move("c6e4").commit();
+		game.uciMove("c6e4").commit();
 		visualize(game);
 		assertEquals(game.endReason, EndReason.INSUFFICIENT_MATERIAL);
 		assertEquals(game.status, GameStatus.DRAW);
@@ -227,12 +232,13 @@ public class Tests
 		System.out.println("Algebraic Notation (AN)\n");
 		Game game = new Game().loadFEN("7r/6P1/8/8/8/8/8/8 w").start();
 		visualize(game);
-		Move move = game.move("g7h8q");
-		assertEquals(game.ANmove("gxh8=Q"), move);
-		assertEquals(game.ANmove("gxh8=♕"), move);
-		assertEquals(game.ANmove("gh8=Q"), move);
-		assertEquals(game.ANmove("g7h8=Q"), move);
-		assertEquals(game.ANmove("g7xRh8=Q"), move);
+		Move move = game.uciMove("g7h8q");
+		assertEquals(game.move("g7h8q"), move);
+		assertEquals(game.move("gxh8=Q"), move);
+		assertEquals(game.move("gxh8=♕"), move);
+		assertEquals(game.move("gh8=Q"), move);
+		assertEquals(game.move("g7h8=Q"), move);
+		assertEquals(game.move("g7xRh8=Q"), move);
 		move.commit();
 		visualize(game);
 		assertEquals(move.toAlgebraicNotation(AlgebraicNotationVariation.SAN), "gxh8=Q");
@@ -243,7 +249,7 @@ public class Tests
 		assertEquals(move.toAlgebraicNotation(AlgebraicNotationVariation.RAN), "g7xRh8=Q");
 		game = new Game().loadFEN("8/8/8/8/8/3R4/8/3R4 w - -").start();
 		visualize(game);
-		move = game.ANmove("R3d2");
+		move = game.move("R3d2");
 		assertNotNull(move);
 		move.commit();
 		visualize(game);
@@ -265,19 +271,19 @@ public class Tests
 	public void pgn() throws ChessException
 	{
 		System.out.println("PGN\n");
-		final Game game = new Game().loadFEN("3k4/8/8/8/8/8/7p/R3K3 w Q -").start();
+		Game game = new Game().loadFEN("3k4/8/8/8/8/8/7p/R3K3 w Q -").start();
 		visualize(game);
-		game.move("e1c1").annotate("Annotation!").commit();
+		game.uciMove("e1c1").annotate("Annotation!").commit();
 		visualize(game);
-		game.move("d8e7").commit();
+		game.uciMove("d8e7").commit();
 		visualize(game);
-		game.move("c1b1").commit();
+		game.uciMove("c1b1").commit();
 		visualize(game);
-		game.move("h2h1q").commit();
+		game.uciMove("h2h1q").commit();
 		visualize(game);
 		final String pgn = game.toPGN();
 		System.out.println(pgn);
-		final Game game_ = Game.fromPGN(pgn).get(0);
+		Game game_ = Game.fromPGN(pgn).get(0);
 		visualize(game_);
 		assertTrue(pgn.contains("1. O-O-O+ { Annotation! } Ke7 2. Kb1 h1=Q *"));
 		assertEquals(game, game_);
@@ -287,6 +293,8 @@ public class Tests
 		assertEquals(game, Game.fromPGN(game.toPGN(AlgebraicNotationVariation.MAN)).get(0));
 		assertEquals(game, Game.fromPGN(game.toPGN(AlgebraicNotationVariation.LAN)).get(0));
 		assertEquals(game, Game.fromPGN(game.toPGN(AlgebraicNotationVariation.RAN)).get(0));
+		game = new Game().loadFEN("8/2K5/4q3/8/3N1N2/6b1/8/7k w - -").start();
+		game.move("Nxe6");
 	}
 
 	@Test(timeout = 1000L)
@@ -295,13 +303,13 @@ public class Tests
 		System.out.println("CGN\n");
 		final Game game = new Game().loadFEN("3k4/8/8/8/8/8/7p/R3K3 w Q -").start();
 		visualize(game);
-		game.move("e1c1").annotate("Annotation!").commit();
+		game.uciMove("e1c1").annotate("Annotation!").commit();
 		visualize(game);
-		game.move("d8e7").commit();
+		game.uciMove("d8e7").commit();
 		visualize(game);
-		game.move("c1b1").commit();
+		game.uciMove("c1b1").commit();
 		visualize(game);
-		game.move("h2h1q").commit();
+		game.uciMove("h2h1q").commit();
 		visualize(game);
 		final byte[] cgn = game.toCGN();
 		for(byte b : cgn)
@@ -375,8 +383,8 @@ public class Tests
 		System.out.println("Antichess\n");
 		final Game game = new Game(Variant.ANTICHESS).loadFEN("8/8/8/2Kp4/8/8/8/8 w").start();
 		visualize(game);
-		assertFalse(game.move("c5b5").isLegal());
-		final Move move = game.move("c5d5");
+		assertFalse(game.uciMove("c5b5").isLegal());
+		final Move move = game.uciMove("c5d5");
 		assertTrue(move.isLegal());
 		move.commit();
 		visualize(game);
@@ -401,7 +409,7 @@ public class Tests
 	public void kingOfTheHill() throws ChessException
 	{
 		final Game game = new Game(Variant.KING_OF_THE_HILL).loadFEN("8/8/4k3/8/3P4/2P1K3/8/8 w").start();
-		game.move("e3e4").commit();
+		game.uciMove("e3e4").commit();
 		assertEquals(EndReason.CHECKMATE, game.endReason);
 		assertEquals(GameStatus.WHITE_WINS, game.status);
 	}
@@ -416,7 +424,7 @@ public class Tests
 		assertEquals(GameStatus.WHITE_WINS, game.status);
 		game = new Game(Variant.HORDE).loadFEN("8/8/2Pk4/8/8/8/8/8 b - -").start();
 		visualize(game);
-		game.move("d6c6").commit();
+		game.uciMove("d6c6").commit();
 		visualize(game);
 		assertEquals(EndReason.CHECKMATE, game.endReason);
 		assertEquals(GameStatus.BLACK_WINS, game.status);
@@ -428,8 +436,8 @@ public class Tests
 		System.out.println("Racing Kings\n");
 		final Game game = new Game(Variant.RACING_KINGS).loadFEN("8/k6K/8/4q3/8/8/8/8 b").start();
 		visualize(game);
-		assertFalse(game.move("e5h6").isLegal());
-		final Move move = game.move("a7a8");
+		assertFalse(game.uciMove("e5h6").isLegal());
+		final Move move = game.uciMove("a7a8");
 		move.commit();
 		visualize(game);
 		assertTrue(move.isCheckmate());
@@ -475,7 +483,7 @@ public class Tests
 	public void king() throws ChessException
 	{
 		System.out.println("Possible Moves: King\n");
-		final Game game = new Game().loadFEN("7K/8/3K2K1/8/8/1K6/8/K7 w - -").start();
+		final Game game = new Game().loadFEN("7k/8/3k2k1/8/8/1k6/8/k7 w - -").start();
 		final ArrayList<Square> squares = new ArrayList<>();
 		for(Piece piece : game.pieces)
 		{

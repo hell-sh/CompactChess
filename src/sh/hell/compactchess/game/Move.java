@@ -1,6 +1,7 @@
 package sh.hell.compactchess.game;
 
 import sh.hell.compactchess.exceptions.ChessException;
+import sh.hell.compactchess.exceptions.InvalidMoveException;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
@@ -29,34 +30,34 @@ public class Move
 	{
 		if(game.status == GameStatus.BUILDING)
 		{
-			throw new ChessException("The game has not started yet");
+			throw new InvalidMoveException("The game has not started yet");
 		}
 		if(!fromSquare.hasPiece())
 		{
-			throw new ChessException("There's no piece on " + fromSquare.getAlgebraicNotation());
+			throw new InvalidMoveException("There's no piece on " + fromSquare.getAlgebraicNotation());
 		}
 		if(fromSquare.equals(toSquare))
 		{
-			throw new ChessException("Can't move to the same square");
+			throw new InvalidMoveException("Can't move to the same square");
 		}
 		if(promoteTo != null && fromSquare.getPiece().type != PieceType.PAWN)
 		{
-			throw new ChessException("Only pawns can promote");
+			throw new InvalidMoveException("Only pawns can promote");
 		}
 		if(promoteTo == PieceType.PAWN)
 		{
-			throw new ChessException("Promoting to a pawn makes no sense");
+			throw new InvalidMoveException("Promoting to a pawn makes no sense");
 		}
 		if(promoteTo == PieceType.KING && game.variant != Variant.ANTICHESS)
 		{
-			throw new ChessException("You can't promote to king in " + game.variant.name());
+			throw new InvalidMoveException("You can't promote to king in " + game.variant.name());
 		}
 		this.game = new WeakReference<>(game);
 		this._game = game.copy();
 		this.fromSquare = fromSquare;
 		this.toSquare = toSquare;
 		this.promoteTo = promoteTo;
-		this.isEnPassant = toSquare.equals(game.enPassantSquare);
+		this.isEnPassant = fromSquare.getPiece().type == PieceType.PAWN && toSquare.equals(game.enPassantSquare);
 		final Piece piece = fromSquare.getPiece();
 		if(piece.type == PieceType.KING && fromSquare.file == 4)
 		{
@@ -147,7 +148,7 @@ public class Move
 
 	Game commitTo(Game game, boolean dontCalculate) throws ChessException
 	{
-		if(toSquare.equals(game.enPassantSquare))
+		if(this.isEnPassant)
 		{
 			Square epPieceSquare;
 			if(game.enPassantSquare.rank == 2)
@@ -263,6 +264,10 @@ public class Move
 
 	public String getIllegalReason() throws ChessException
 	{
+		if(this._game.square(this.fromSquare).getPiece().color != this._game.toMove)
+		{
+			return "You can only move your own pieces";
+		}
 		if(this._game.variant == Variant.ANTICHESS)
 		{
 			if(!this._game.square(this.toSquare).hasPiece())
@@ -401,9 +406,9 @@ public class Move
 					{
 						return "You can't castle because d8 is under attack";
 					}
-					if(this._game.square("d1").hasPiece())
+					if(this._game.square("d8").hasPiece())
 					{
-						return "You can't castle because d1 is occupied";
+						return "You can't castle because d8 is occupied";
 					}
 					if(opponentControlledSquares.contains(this._game.square("d8")))
 					{
@@ -614,11 +619,11 @@ public class Move
 		Piece piece = _game.square(fromSquare).getPiece();
 		if(piece.type == PieceType.PAWN)
 		{
-			if(piece.color == Color.WHITE && fromSquare.rank == 1)
+			if(piece.color == Color.WHITE && fromSquare.rank == 1 && toSquare.rank == 3)
 			{
 				return _game.square(fromSquare.file, (byte) (fromSquare.rank + 1));
 			}
-			else if(piece.color == Color.BLACK && fromSquare.rank == 6)
+			else if(piece.color == Color.BLACK && fromSquare.rank == 6 && toSquare.rank == 4)
 			{
 				return _game.square(fromSquare.file, (byte) (fromSquare.rank - 1));
 			}
