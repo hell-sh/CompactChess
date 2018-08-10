@@ -1,7 +1,6 @@
 package sh.hell.compactchess;
 
 import sh.hell.compactchess.engine.Engine;
-import sh.hell.compactchess.engine.EngineBuilder;
 import sh.hell.compactchess.exceptions.ChessException;
 import sh.hell.compactchess.game.Color;
 import sh.hell.compactchess.game.Game;
@@ -17,24 +16,22 @@ public class ExampleEngineVSEngine
 {
 	public static void main(String[] args) throws ChessException, IOException, InterruptedException
 	{
-		final Engine engine = new EngineBuilder("stockfish_9.exe", 4).build()
-				//.debug(true)
-				;
+		final Engine whiteEngine = new Engine("lc0.exe", 4).debug(true);
+		final Engine blackEngine = new Engine("stockfish_9.exe", 4).debug(true);
 		final NumberFormat formatter = new DecimalFormat("#0.00");
 		//Game game = new Game().loadFEN("5Bbk/q7/8/p7/8/K7/5P2/6Q1 w - -").start();
 		do
 		{
-			final Game game = new Game().start();
+			final Game game = new Game().setSuddenDeath(60000).setTag("White", "Leela Chess Zero 594").setTag("Black", "Stockfish 9").start();
 			FileWriter fw = new FileWriter("board.svg", false);
 			fw.write(game.toSVG());
 			fw.close();
 			do
 			{
-				engine.evaluateInfinitely(game);
-				Thread.sleep(game.toMove == Color.WHITE ? 1000 : 500);
-				engine.conclude();
+				Engine engine = (game.toMove == Color.WHITE ? whiteEngine : blackEngine);
+				engine.evaluate(game).awaitConclusion();
 				fw = new FileWriter("info.txt", false);
-				fw.write("Stockfish 9 VS Stockfish 9!\nBlack has half the time white has.\n");
+				fw.write("LCZero 594 VS Stockfish 9\n" + game.getWhiteTime() + "     " + game.getBlackTime() + "\n");
 				final Move move = engine.getBestMove();
 				if(move == null)
 				{
@@ -45,7 +42,7 @@ public class ExampleEngineVSEngine
 				}
 				//move.requireLegality();
 				System.out.println(game.toMove.name() + " played " + move.toUCI() + "\n");
-				fw.write("\nEvaluation for white: " + formatter.format(((double) engine.score * (game.toMove == Color.WHITE ? 1 : -1)) / 100) + "\n");
+				fw.write("\n" + game.toMove.name() + "'s evaluation: " + formatter.format((double) engine.score / 100) + "\n");
 				if(engine.foundMate())
 				{
 					fw.write(engine.getMatee().name() + " is getting mated in " + engine.getMateIn() + "!\n");
@@ -58,17 +55,15 @@ public class ExampleEngineVSEngine
 					System.out.println("Game over: " + game.status.name() + " by " + game.endReason.name());
 					fw.write("\nNew game in 3 seconds.\n");
 					fw.close();
-					break;
 				}
 				fw.close();
 				fw = new FileWriter("board.svg", false);
 				fw.write(game.toSVG());
 				fw.close();
 			}
-			while(true);
+			while(game.status == GameStatus.ONGOING);
 			System.out.println("\n" + game.toPGN());
 			Thread.sleep(3000);
-			//engine.dispose();
 		}
 		while(true);
 	}
