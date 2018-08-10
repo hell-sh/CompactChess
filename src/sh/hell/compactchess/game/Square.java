@@ -101,7 +101,7 @@ public class Square
 		return Square.index(file, rank);
 	}
 
-	public String getAlgebraicNotation() throws ChessException
+	public String getAlgebraicNotation()
 	{
 		return this.getFileChar().toLowerCase() + (this.rank + 1);
 	}
@@ -140,26 +140,25 @@ public class Square
 		}
 	}
 
-	public String getFileChar() throws ChessException
+	public String getFileChar()
 	{
-		return Square.fileChar(file);
+		try
+		{
+			return Square.fileChar(file);
+		}
+		catch(ChessException ignored)
+		{
+		}
+		return null;
 	}
 
 	public String toString()
 	{
-		try
+		if(piece != null)
 		{
-			if(piece != null)
-			{
-				return "{Square " + getAlgebraicNotation() + " with " + getPiece().toString() + "}";
-			}
-			return "{Square " + getAlgebraicNotation() + "}";
+			return "{Square " + getAlgebraicNotation() + " with " + getPiece().toString() + "}";
 		}
-		catch(ChessException e)
-		{
-			e.printStackTrace();
-		}
-		return "{Square}";
+		return "{Square " + getAlgebraicNotation() + "}";
 	}
 
 	public Square copy()

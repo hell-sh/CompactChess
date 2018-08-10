@@ -417,9 +417,10 @@ public class Game
 		}
 		else
 		{
+			String promoteChar = move.substring(move.length() - 1).toUpperCase();
 			for(PieceType pt : PieceType.values())
 			{
-				if(pt.notationChar.equalsIgnoreCase(move.substring(move.length() - 1)) || pt.whiteSymbol.equals(move.substring(move.length() - 1)) || pt.blackSymbol.equals(move.substring(move.length() - 1)))
+				if(pt.notationChar.equals(promoteChar) || pt.whiteSymbol.equals(promoteChar) || pt.blackSymbol.equals(promoteChar))
 				{
 					promoteTo = pt;
 					break;
@@ -977,12 +978,12 @@ public class Game
 		}
 	}
 
-	public String getPositionalFEN() throws ChessException
+	public String getPositionalFEN()
 	{
 		return this.getPositionalFEN(false);
 	}
 
-	public String getPositionalFEN(final boolean compact) throws ChessException
+	public String getPositionalFEN(final boolean compact)
 	{
 		StringBuilder sb = new StringBuilder();
 		byte emptySquares = 0;
@@ -1045,12 +1046,12 @@ public class Game
 		return sb.toString();
 	}
 
-	public String getFEN() throws ChessException
+	public String getFEN()
 	{
 		return this.getFEN(false);
 	}
 
-	public String getFEN(final boolean compact) throws ChessException
+	public String getFEN(final boolean compact)
 	{
 		if(compact && hundredPliesRuleTimer == 0 && plyCount == 1)
 		{
@@ -1120,7 +1121,7 @@ public class Game
 		return this;
 	}
 
-	public HashMap<String, String> getExportableTags(boolean compact) throws ChessException
+	public HashMap<String, String> getExportableTags(boolean compact)
 	{
 		final HashMap<String, String> tags = new HashMap<>();
 		if(!compact || this.variant != Variant.STANDARD)
@@ -1298,12 +1299,27 @@ public class Game
 		os.write(0b10000000);
 	}
 
-	public String toString(boolean whitesPerspective) throws ChessException
+	public String toString()
+	{
+		return toString(true, false, false, false);
+	}
+
+	public String toString(boolean whitesPerspective)
 	{
 		return toString(whitesPerspective, false, false, false);
 	}
 
-	public String toString(boolean whitesPerspective, boolean noCoordinates, boolean noUnicode, boolean invertColor) throws ChessException
+	public String toString(boolean whitesPerspective, boolean noCoordinates)
+	{
+		return toString(whitesPerspective, noCoordinates, false, false);
+	}
+
+	public String toString(boolean whitesPerspective, boolean noCoordinates, boolean noUnicode)
+	{
+		return toString(whitesPerspective, noCoordinates, noUnicode, false);
+	}
+
+	public String toString(boolean whitesPerspective, boolean noCoordinates, boolean noUnicode, boolean invertColor)
 	{
 		final StringBuilder sb = new StringBuilder();
 		byte rank = (byte) (whitesPerspective ? 7 : 0);
@@ -1349,7 +1365,14 @@ public class Game
 			byte file = (byte) (whitesPerspective ? 0 : 7);
 			while(whitesPerspective ? file < 8 : file >= 0)
 			{
-				sb.append(Square.fileChar(file).toLowerCase());
+				try
+				{
+					sb.append(Square.fileChar(file).toLowerCase());
+				}
+				catch(ChessException ignored)
+				{
+
+				}
 				if(whitesPerspective)
 				{
 					file++;
@@ -1366,8 +1389,30 @@ public class Game
 
 	public String toSVG()
 	{
-		//StringBuilder svg = new StringBuilder("<svg version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" viewBox=\"0 0 800 800\"><rect width=\"800\" height=\"800\" fill=\"#b58863\"/><g id=\"a\"><g id=\"b\"><g id=\"c\"><g id=\"d\"><rect width=\"100\" height=\"100\" fill=\"#f0d9b5\" id=\"e\"/><use x=\"200\" xlink:href=\"#e\"/></g><use x=\"400\" xlink:href=\"#d\"/></g><use x=\"100\" y=\"100\" xlink:href=\"#c\"/></g><use y=\"200\" xlink:href=\"#b\"/></g><use y=\"400\" xlink:href=\"#a\"/>");
+		return this.toSVG(true, true);
+	}
+
+	public String toSVG(boolean indicateLastMove)
+	{
+		return this.toSVG(indicateLastMove, true);
+	}
+
+	public String toSVG(boolean indicateLastMove, boolean indicateCheck)
+	{
 		StringBuilder svg = new StringBuilder("<svg version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" viewBox=\"0 0 360 360\"><rect width=\"360\" height=\"360\" fill=\"#b58863\"/><g id=\"a\"><g id=\"b\"><g id=\"c\"><g id=\"d\"><rect width=\"45\" height=\"45\" fill=\"#f0d9b5\" id=\"e\"/><use x=\"90\" xlink:href=\"#e\"/></g><use x=\"180\" xlink:href=\"#d\"/></g><use x=\"45\" y=\"45\" xlink:href=\"#c\"/></g><use y=\"90\" xlink:href=\"#b\"/></g><use y=\"180\" xlink:href=\"#a\"/>");
+		if(indicateLastMove)
+		{
+			synchronized(moves)
+			{
+				if(moves.size() > 0)
+				{
+					Move move = moves.get(moves.size() - 1);
+					svg.append("<g transform=\"translate(").append(move.fromSquare.file * 45).append(",").append(315 - (move.fromSquare.rank * 45)).append(")\"><rect width=\"45\" height=\"45\" style=\"fill:rgba(155,199,0,.41)\"></rect></g>");
+					svg.append("<g transform=\"translate(").append(move.toSquare.file * 45).append(",").append(315 - (move.toSquare.rank * 45)).append(")\"><rect width=\"45\" height=\"45\" style=\"fill:rgba(155,199,0,.41)\"></rect></g>");
+				}
+			}
+		}
+		boolean isCheck = (indicateCheck && this.isCheck());
 		for(byte rank = 0; rank < 8; rank++)
 		{
 			for(byte file = 0; file < 8; file++)
@@ -1375,7 +1420,12 @@ public class Game
 				Square square = this.square(file, rank);
 				if(square.hasPiece())
 				{
-					String piece_svg = square.getPiece().getSVG();
+					Piece p = square.getPiece();
+					String piece_svg = p.getSVG();
+					if(isCheck && p.color == this.toMove && p.type == PieceType.KING)
+					{
+						svg.append("<g transform=\"translate(").append(file * 45).append(",").append(315 - (rank * 45)).append(")\"><rect width=\"45\" height=\"45\" style=\"fill:rgba(255,0,0,.56)\"></rect></g>");
+					}
 					svg.append(piece_svg, 0, 2).append(" transform=\"translate(").append(file * 45).append(",").append(315 - (rank * 45)).append(")\"").append(piece_svg.substring(2));
 				}
 			}
@@ -1383,10 +1433,16 @@ public class Game
 		return svg.append("</svg>").toString();
 	}
 
-	public Game copy() throws ChessException
+	public Game copy()
 	{
 		final Game game = new Game();
-		game.loadFEN(this.getPositionalFEN());
+		try
+		{
+			game.loadFEN(this.getPositionalFEN());
+		}
+		catch(ChessException ignored)
+		{
+		}
 		if(start != null)
 		{
 			game.start = start.copy();
@@ -1416,13 +1472,7 @@ public class Game
 	{
 		if(o2 instanceof Game)
 		{
-			try
-			{
-				return this.getFEN(true).equals(((Game) o2).getFEN(true)) && ((this.start == null && ((Game) o2).start == null) || (this.start != null && ((Game) o2).start != null && this.start.getFEN(true).equals(((Game) o2).start.getFEN(true)))) && this.plyCount == ((Game) o2).plyCount && this.moves.equals(((Game) o2).moves) && this.variant.equals(((Game) o2).variant) && this.toMove.equals(((Game) o2).toMove) && this.timeControl.equals(((Game) o2).timeControl) && this.status == ((Game) o2).status && this.endReason == ((Game) o2).endReason && this.plyStart == ((Game) o2).plyStart && this.tags.equals(((Game) o2).tags) && this.increment == ((Game) o2).increment && this.whitemsecs == ((Game) o2).whitemsecs && this.blackmsecs == ((Game) o2).blackmsecs;
-			}
-			catch(ChessException ignored)
-			{
-			}
+			return this.getFEN(true).equals(((Game) o2).getFEN(true)) && ((this.start == null && ((Game) o2).start == null) || (this.start != null && ((Game) o2).start != null && this.start.getFEN(true).equals(((Game) o2).start.getFEN(true)))) && this.plyCount == ((Game) o2).plyCount && this.moves.equals(((Game) o2).moves) && this.variant.equals(((Game) o2).variant) && this.toMove.equals(((Game) o2).toMove) && this.timeControl.equals(((Game) o2).timeControl) && this.status == ((Game) o2).status && this.endReason == ((Game) o2).endReason && this.plyStart == ((Game) o2).plyStart && this.tags.equals(((Game) o2).tags) && this.increment == ((Game) o2).increment && this.whitemsecs == ((Game) o2).whitemsecs && this.blackmsecs == ((Game) o2).blackmsecs;
 		}
 		return false;
 	}

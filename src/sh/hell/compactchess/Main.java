@@ -349,8 +349,7 @@ public class Main
 		final Move move = engine.evaluate(game, 3000).awaitConclusion().getBestMove();
 		if(move == null)
 		{
-			System.out.println("Aborting: Engine failed to solve a mate in 1 in less than 3 seconds.");
-			return;
+			System.out.println("Warning: Engine failed to solve a mate in 1 in less than 3 seconds.");
 		}
 		else if(move.isCheckmate())
 		{
@@ -358,11 +357,10 @@ public class Main
 		}
 		else
 		{
-			System.out.println("Aborting: Engine didn't correctly solve a mate in 1 in less than 3 seconds.");
+			System.out.println("Warning: Engine didn't correctly solve a mate in 1.");
 			System.out.println("If this is your custom engine, you might want to fix that:");
 			System.out.println();
 			System.out.println(move.commit().toPGN());
-			return;
 		}
 		System.out.println();
 		engineOperations(engine);

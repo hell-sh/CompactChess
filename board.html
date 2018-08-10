@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CompactChess Board</title>
+    <style>body{margin:0;background:#000}</style>
+</head>
+<body>
+<img id="i1">
+<img id="i2" style="display:none">
+<script>
+		var i1=document.getElementById("i1"),
+		i2=document.getElementById("i2"),
+		lup=new Date().getTime();
+
+		i1.onload=function()
+		{
+			setTimeout(function()
+			{
+				i1.style.display="block",
+				i2.style.display="none",
+				lup=new Date().getTime();
+				i2.src="board.svg?t="+new Date().getTime()+"&r="+Math.random();
+			},100);
+		};
+		i1.onload();
+		i2.onload=function()
+		{
+			setTimeout(function()
+			{
+				i2.style.display="block",
+				i1.style.display="none",
+				lup=new Date().getTime();
+				i1.src="board.svg?t="+new Date().getTime()+"&r="+Math.random();
+			},100);
+		};
+		setInterval(function()
+		{
+			if(lup<(new Date().getTime()-1000))
+				location.reload()
+		},500)
+
+</script>
+</body>
+</html>
