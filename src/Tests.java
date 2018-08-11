@@ -559,5 +559,7 @@ public class Tests
 		assertEquals(30000, game.whitemsecs);
 		assertEquals(30000, game.blackmsecs);
 		assertEquals(2000, game.increment);
+		game.whitemsecs = -100;
+		assertEquals("-00.0100", game.getWhiteTime());
 	}
 }
