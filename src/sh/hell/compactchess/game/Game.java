@@ -649,7 +649,7 @@ public class Game
 		{
 			endReason = EndReason.STALEMATE;
 		}
-		else if(timeControl != TimeControl.UNLIMITED && (toMove == Color.WHITE ? whitemsecs : blackmsecs) <= 0)
+		else if(timeControl != TimeControl.UNLIMITED && plyCount > 2 && (toMove == Color.WHITE ? whitemsecs : blackmsecs) <= 0)
 		{
 			endReason = EndReason.TIMEOUT;
 		}
@@ -994,22 +994,29 @@ public class Game
 		return this;
 	}
 
+	public Game setPlayerNames(String white, String black)
+	{
+		return this.setTag("White", white).setTag("Black", black);
+	}
+
 	private String formatTime(long msecs)
 	{
-		String time = String.format("%04d", (msecs % 1000));
-		if((this.start == null ? this.whitemsecs : this.start.whitemsecs) >= 1000)
+		String time = "";
+		if(msecs < 0)
 		{
-			long seconds = (msecs / 1000) % 60;
-			time = String.format("%02d.", seconds) + time;
-			if((this.start == null ? this.whitemsecs : this.start.whitemsecs) >= 60000)
+			msecs = msecs * -1;
+			time = "-";
+		}
+		long seconds = (msecs / 1000) % 60;
+		time += String.format("%02d.", seconds) + String.format("%04d", (msecs % 1000));
+		if(msecs >= 60000)
+		{
+			long minutes = (msecs / 60000) % 60;
+			time = String.format("%02d:", minutes) + time;
+			if(msecs >= 3600000)
 			{
-				long minutes = (msecs / 60000) % 60;
-				time = String.format("%02d:", minutes) + time;
-				if((this.start == null ? this.whitemsecs : this.start.whitemsecs) >= 3600000)
-				{
-					long hours = (msecs / 3600000) % 24;
-					time = String.format("%02d:", hours) + time;
-				}
+				long hours = (msecs / 3600000) % 24;
+				time = String.format("%02d:", hours) + time;
 			}
 		}
 		return time;

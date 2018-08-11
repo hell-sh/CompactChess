@@ -179,19 +179,19 @@ public class Move
 		}
 		if(game.timeControl != TimeControl.UNLIMITED)
 		{
+			if(game.timeControl == TimeControl.INCREMENT)
+			{
+				if(game.toMove == Color.WHITE)
+				{
+					game.whitemsecs += game.increment;
+				}
+				else
+				{
+					game.blackmsecs += game.increment;
+				}
+			}
 			if(game.plyStart > 0)
 			{
-				if(game.timeControl == TimeControl.INCREMENT)
-				{
-					if(game.toMove == Color.WHITE)
-					{
-						game.whitemsecs += game.increment;
-					}
-					else
-					{
-						game.blackmsecs += game.increment;
-					}
-				}
 				if(game.toMove == Color.WHITE)
 				{
 					game.whitemsecs -= (System.currentTimeMillis() - game.plyStart);
@@ -199,13 +199,6 @@ public class Move
 				else
 				{
 					game.blackmsecs -= (System.currentTimeMillis() - game.plyStart);
-				}
-				if(!dontCalculate)
-				{
-					if((game.toMove == Color.WHITE ? game.whitemsecs : game.blackmsecs) - (System.currentTimeMillis() - game.plyStart) <= 0)
-					{
-						game.endReason = EndReason.TIMEOUT;
-					}
 				}
 			}
 			if(game.plyCount > 1)
@@ -460,7 +453,7 @@ public class Move
 		return this.commitTo(this._game.copy(), true).isCheckmate(true);
 	}
 
-	public String toUCI() throws ChessException
+	public String toUCI()
 	{
 		StringBuilder uci = new StringBuilder(fromSquare.getAlgebraicNotation()).append(toSquare.getAlgebraicNotation());
 		if(this.promoteTo != null)

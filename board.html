@@ -11,8 +11,8 @@
 <script>
 		var i1=document.getElementById("i1"),
 		i2=document.getElementById("i2"),
-		i3=document.getElementById("i3");
-
+		i3=document.getElementById("i3"),
+		lup=new Date().getTime();
 		i1.onload=i1.onerror=function()
 		{
 			setTimeout(function()
@@ -20,6 +20,7 @@
 				i3.style.display="none";
 				i1.style.display="block";
 				i2.src="board.svg?t="+new Date().getTime()+"&r="+Math.random();
+				lup=new Date().getTime();
 			},100);
 		};
 		i1.onload();
@@ -30,6 +31,7 @@
 				i1.style.display="none";
 				i2.style.display="block";
 				i3.src="board.svg?t="+new Date().getTime()+"&r="+Math.random();
+				lup=new Date().getTime();
 			},100);
 		};
 		i3.onload=i3.onerror=function()
@@ -39,8 +41,13 @@
 				i2.style.display="none";
 				i3.style.display="block";
 				i1.src="board.svg?t="+new Date().getTime()+"&r="+Math.random();
+				lup=new Date().getTime();
 			},100);
 		}
+		setInterval(()=>{
+			if(lup<(new Date().getTime()-300))
+				location.reload()
+		},100)
 </script>
 </body>
 </html>
