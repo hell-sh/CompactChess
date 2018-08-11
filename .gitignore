@@ -1,8 +1,9 @@
 .idea/
 out/
 test_libs/
+board.svg
 *.iml
+*.txt
 *.exe
 *.dll
 leelaz_opencl_tuning
-weights.txt

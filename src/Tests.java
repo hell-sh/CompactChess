@@ -11,6 +11,7 @@ import sh.hell.compactchess.game.Move;
 import sh.hell.compactchess.game.Piece;
 import sh.hell.compactchess.game.PieceType;
 import sh.hell.compactchess.game.Square;
+import sh.hell.compactchess.game.TimeControl;
 import sh.hell.compactchess.game.Variant;
 
 import java.io.ByteArrayInputStream;
@@ -27,12 +28,12 @@ import static org.junit.Assert.assertNull;
 
 public class Tests
 {
-	private static void visualize(Game game) throws ChessException
+	private static void visualize(Game game)
 	{
 		System.out.println(game.toString(true));
 	}
 
-	private static void evaluatePossibleMoves(int expectedSquares, Game game, ArrayList<Square> squares) throws ChessException
+	private static void evaluatePossibleMoves(int expectedSquares, Game game, ArrayList<Square> squares)
 	{
 		visualize(game);
 		int uniqueSquares = 0;
@@ -541,5 +542,22 @@ public class Tests
 			}
 		}
 		evaluatePossibleMoves(22, game, squares);
+	}
+
+	@Test(timeout = 1000L)
+	public void timeControl() throws ChessException
+	{
+		final Game game = new Game();
+		game.setUnlimitedTime();
+		assertEquals(TimeControl.UNLIMITED, game.timeControl);
+		game.setTimed(60000, 0);
+		assertEquals(TimeControl.SUDDEN_DEATH, game.timeControl);
+		assertEquals(60000, game.whitemsecs);
+		assertEquals(60000, game.blackmsecs);
+		game.setTimed(30000, 2000);
+		assertEquals(TimeControl.INCREMENT, game.timeControl);
+		assertEquals(30000, game.whitemsecs);
+		assertEquals(30000, game.blackmsecs);
+		assertEquals(2000, game.increment);
 	}
 }

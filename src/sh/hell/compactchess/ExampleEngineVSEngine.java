@@ -22,7 +22,7 @@ public class ExampleEngineVSEngine
 		//Game game = new Game().loadFEN("5Bbk/q7/8/p7/8/K7/5P2/6Q1 w - -").start();
 		do
 		{
-			final Game game = new Game().setSuddenDeath(60000).setTag("White", "Leela Chess Zero 594").setTag("Black", "Stockfish 9").start();
+			final Game game = new Game().setTimed(15000, 0).setTag("White", "Leela Chess Zero 594").setTag("Black", "Stockfish 9").start();
 			FileWriter fw = new FileWriter("board.svg", false);
 			fw.write(game.toSVG());
 			fw.close();

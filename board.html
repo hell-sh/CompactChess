@@ -7,38 +7,40 @@
 <body>
 <img id="i1">
 <img id="i2" style="display:none">
+<img id="i3" style="display:none">
 <script>
 		var i1=document.getElementById("i1"),
 		i2=document.getElementById("i2"),
-		lup=new Date().getTime();
+		i3=document.getElementById("i3");
 
-		i1.onload=function()
+		i1.onload=i1.onerror=function()
 		{
 			setTimeout(function()
 			{
-				i1.style.display="block",
-				i2.style.display="none",
-				lup=new Date().getTime();
+				i3.style.display="none";
+				i1.style.display="block";
 				i2.src="board.svg?t="+new Date().getTime()+"&r="+Math.random();
 			},100);
 		};
 		i1.onload();
-		i2.onload=function()
+		i2.onload=i2.onerror=function()
 		{
 			setTimeout(function()
 			{
-				i2.style.display="block",
-				i1.style.display="none",
-				lup=new Date().getTime();
-				i1.src="board.svg?t="+new Date().getTime()+"&r="+Math.random();
+				i1.style.display="none";
+				i2.style.display="block";
+				i3.src="board.svg?t="+new Date().getTime()+"&r="+Math.random();
 			},100);
 		};
-		setInterval(function()
+		i3.onload=i3.onerror=function()
 		{
-			if(lup<(new Date().getTime()-1000))
-				location.reload()
-		},500)
-
+			setTimeout(function()
+			{
+				i2.style.display="none";
+				i3.style.display="block";
+				i1.src="board.svg?t="+new Date().getTime()+"&r="+Math.random();
+			},100);
+		}
 </script>
 </body>
 </html>

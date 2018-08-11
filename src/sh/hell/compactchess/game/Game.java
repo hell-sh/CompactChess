@@ -328,35 +328,37 @@ public class Game
 			{
 				game.timeControl = TimeControl.UNLIMITED;
 			}
-			else if(val.contains("+"))
+			else
 			{
-				String[] timeArr = val.split("\\+");
-				if(timeArr.length != 2)
+				if(val.contains("+"))
 				{
-					throw new ChessException("Invalid TimeControl: " + val);
-				}
-				game.timeControl = TimeControl.INCREMENT;
-				game.increment = Long.valueOf(timeArr[1].replace("seconds", "").trim()) * 1000;
-				if(timeArr[0].contains(":"))
-				{
-					String[] timeArr2 = timeArr[0].trim().split(":");
-					if(timeArr2.length != 2)
+					String[] timeArr = val.split("\\+");
+					if(timeArr.length != 2)
 					{
 						throw new ChessException("Invalid TimeControl: " + val);
 					}
-					game.whitemsecs = (((Long.valueOf(timeArr2[0]) * 60) + Long.valueOf(timeArr2[1])) * 60) * 1000;
+					game.increment = Long.valueOf(timeArr[1].replace("seconds", "").trim()) * 1000;
+					if(timeArr[0].contains(":"))
+					{
+						String[] timeArr2 = timeArr[0].trim().split(":");
+						if(timeArr2.length != 2)
+						{
+							throw new ChessException("Invalid TimeControl: " + val);
+						}
+						game.whitemsecs = (((Long.valueOf(timeArr2[0]) * 60) + Long.valueOf(timeArr2[1])) * 60) * 1000;
+					}
+					else
+					{
+						game.whitemsecs = Long.valueOf(timeArr[0].trim()) * 1000;
+					}
 				}
 				else
 				{
-					game.whitemsecs = Long.valueOf(timeArr[0].trim()) * 1000;
+					game.whitemsecs = Long.valueOf(val) * 1000;
+					game.increment = 0;
 				}
 				game.blackmsecs = game.whitemsecs;
-			}
-			else
-			{
-				game.timeControl = TimeControl.SUDDEN_DEATH;
-				game.whitemsecs = Long.valueOf(val) * 1000;
-				game.blackmsecs = game.whitemsecs;
+				game.timeControl = (game.increment == 0 ? TimeControl.SUDDEN_DEATH : TimeControl.INCREMENT);
 			}
 		}
 		else if(!key.equalsIgnoreCase("SetUp") && !key.equalsIgnoreCase("PlyCount") && !(key.equalsIgnoreCase("Event") && val.equals("-")))
@@ -973,25 +975,13 @@ public class Game
 		return this;
 	}
 
-	public Game setSuddenDeath(long msecs) throws ChessException
+	public Game setTimed(long msecs, long increment) throws ChessException
 	{
 		if(this.status != GameStatus.BUILDING)
 		{
 			throw new ChessException("The game has already started");
 		}
-		this.timeControl = TimeControl.SUDDEN_DEATH;
-		this.whitemsecs = msecs;
-		this.blackmsecs = msecs;
-		return this;
-	}
-
-	public Game setIncrementalTime(long msecs, long increment) throws ChessException
-	{
-		if(this.status != GameStatus.BUILDING)
-		{
-			throw new ChessException("The game has already started");
-		}
-		this.timeControl = TimeControl.SUDDEN_DEATH;
+		this.timeControl = (increment == 0 ? TimeControl.SUDDEN_DEATH : TimeControl.INCREMENT);
 		this.whitemsecs = msecs;
 		this.blackmsecs = msecs;
 		this.increment = increment;
@@ -1007,15 +997,15 @@ public class Game
 	private String formatTime(long msecs)
 	{
 		String time = String.format("%04d", (msecs % 1000));
-		if(this.start.whitemsecs >= 1000)
+		if((this.start == null ? this.whitemsecs : this.start.whitemsecs) >= 1000)
 		{
 			long seconds = (msecs / 1000) % 60;
 			time = String.format("%02d.", seconds) + time;
-			if(this.start.whitemsecs >= 60000)
+			if((this.start == null ? this.whitemsecs : this.start.whitemsecs) >= 60000)
 			{
 				long minutes = (msecs / 60000) % 60;
 				time = String.format("%02d:", minutes) + time;
-				if(this.start.whitemsecs >= 3600000)
+				if((this.start == null ? this.whitemsecs : this.start.whitemsecs) >= 3600000)
 				{
 					long hours = (msecs / 3600000) % 24;
 					time = String.format("%02d:", hours) + time;
@@ -1195,20 +1185,18 @@ public class Game
 			tags.put("FEN", startFEN);
 		}
 		tags.putAll(this.tags);
-		final String timeControl;
-		if(this.timeControl == TimeControl.SUDDEN_DEATH)
+		if(this.timeControl == TimeControl.INCREMENT)
 		{
-			timeControl = String.valueOf(this.start.whitemsecs / 1000);
+			tags.put("TimeControl", (this.start.whitemsecs / 1000) + "+" + (this.increment / 1000));
 		}
-		else if(this.timeControl == TimeControl.INCREMENT)
+		else if(this.timeControl == TimeControl.SUDDEN_DEATH)
 		{
-			timeControl = (this.start.whitemsecs / 1000) + "+" + (this.increment / 1000);
+			tags.put("TimeControl", String.valueOf(this.start.whitemsecs / 1000) + "+0");
 		}
 		else
 		{
-			timeControl = "-";
+			tags.put("TimeControl", "-");
 		}
-		tags.put("TimeControl", timeControl);
 		if(!compact)
 		{
 			tags.put("PlyCount", String.valueOf(this.plyCount - this.start.plyCount));
@@ -1313,7 +1301,7 @@ public class Game
 		return pgn.toString();
 	}
 
-	public byte[] toCGN() throws IOException, ChessException
+	public byte[] toCGN() throws IOException
 	{
 		final ByteArrayOutputStream os = new ByteArrayOutputStream();
 		this.toCGN(os);
