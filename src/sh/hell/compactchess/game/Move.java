@@ -237,17 +237,20 @@ public class Move
 		return this.commit(false, false);
 	}
 
-	public Game commit(boolean allowIllegal, boolean dontCalculate) throws ChessException
+	public Game commit(boolean illegalIsLegal, boolean dontCalculate) throws ChessException
 	{
-		if(!allowIllegal)
+		Game game = this.game.get();
+		if(game == null)
 		{
-			String illegalReason = this.getIllegalReason();
-			if(illegalReason != null)
-			{
-				throw new ChessException("Move " + this.toUCI() + " is illegal: " + illegalReason);
-			}
+			throw new ChessException("Can't commit move to null");
 		}
-		return this.commitTo(this.game.get(), dontCalculate);
+		if(!illegalIsLegal && this.getIllegalReason() != null)
+		{
+			game.endReason = EndReason.RULES_INFRACTION;
+			game.status = game.toMove == Color.WHITE ? GameStatus.BLACK_WINS : GameStatus.WHITE_WINS;
+			return game;
+		}
+		return this.commitTo(game, dontCalculate);
 	}
 
 	public boolean isLegal() throws ChessException

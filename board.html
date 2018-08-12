@@ -2,10 +2,10 @@
 <html>
 <head>
     <title>CompactChess Board</title>
-    <style>body{margin:0;background:#000}</style>
+    <style>body{margin:0;background:#000;overflow:hidden}</style>
 </head>
 <body>
-<img id="i1">
+<img id="i1" style="display:none">
 <img id="i2" style="display:none">
 <img id="i3" style="display:none">
 <script>
@@ -13,40 +13,57 @@
 		i2=document.getElementById("i2"),
 		i3=document.getElementById("i3"),
 		lup=new Date().getTime();
-		i1.onload=i1.onerror=function()
+		i1.onload=function()
 		{
+			lup=new Date().getTime();
 			setTimeout(function()
 			{
 				i3.style.display="none";
 				i1.style.display="block";
-				i2.src="board.svg?t="+new Date().getTime()+"&r="+Math.random();
-				lup=new Date().getTime();
-			},100);
+				i2.src="board.svg?t="+new Date().getTime()+"&r="+Math.random()
+			},100)
 		};
-		i1.onload();
-		i2.onload=i2.onerror=function()
+		i1.onerror=function()
 		{
+			i1.src="board.svg?t="+new Date().getTime()+"&r="+Math.random()
+		};
+		i1.src="board.svg?t="+new Date().getTime()+"&r="+Math.random();
+		i2.onload=function()
+		{
+			lup=new Date().getTime();
 			setTimeout(function()
 			{
 				i1.style.display="none";
 				i2.style.display="block";
-				i3.src="board.svg?t="+new Date().getTime()+"&r="+Math.random();
-				lup=new Date().getTime();
-			},100);
+				i3.src="board.svg?t="+new Date().getTime()+"&r="+Math.random()
+			},100)
 		};
-		i3.onload=i3.onerror=function()
+		i2.onerror=function()
 		{
+			i2.src="board.svg?t="+new Date().getTime()+"&r="+Math.random()
+		};
+		i3.onload=function()
+		{
+			lup=new Date().getTime();
 			setTimeout(function()
 			{
 				i2.style.display="none";
 				i3.style.display="block";
-				i1.src="board.svg?t="+new Date().getTime()+"&r="+Math.random();
-				lup=new Date().getTime();
-			},100);
-		}
+				i1.src="board.svg?t="+new Date().getTime()+"&r="+Math.random()
+			},100)
+		};
+		i3.onerror=function()
+		{
+			i3.src="board.svg?t="+new Date().getTime()+"&r="+Math.random()
+		};
 		setInterval(()=>{
 			if(lup<(new Date().getTime()-300))
-				location.reload()
+			{
+				i1.style.display="none";
+				i2.style.display="none";
+				i3.style.display="none";
+				i1.src="board.svg?t="+new Date().getTime()+"&r="+Math.random()
+			}
 		},100)
 </script>
 </body>

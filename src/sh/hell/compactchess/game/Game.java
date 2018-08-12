@@ -1234,7 +1234,7 @@ public class Game
 		{
 			tags.put("Termination", endReason.pgn_name);
 		}
-		if(tags.get("Site").equals("https://hell.sh/CompactChess") && tags.get("Event").equals("https://hell.sh/CompactChess"))
+		if(tags.containsKey("Site") && tags.containsKey("Event") && tags.get("Site").equals("https://hell.sh/CompactChess") && tags.get("Event").equals("https://hell.sh/CompactChess"))
 		{
 			tags.remove("Event");
 		}
@@ -1473,7 +1473,7 @@ public class Game
 				}
 			}
 		}
-		boolean isCheck = (indicateCheck && this.isCheck());
+		boolean isCheck = (indicateCheck && this.variant != Variant.ANTICHESS && this.isCheck());
 		for(byte rank = 0; rank < 8; rank++)
 		{
 			for(byte file = 0; file < 8; file++)

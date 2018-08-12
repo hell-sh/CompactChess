@@ -1,11 +1,11 @@
 package sh.hell.compactchess;
 
 import sh.hell.compactchess.engine.Engine;
-import sh.hell.compactchess.exceptions.ChessException;
 import sh.hell.compactchess.game.Color;
 import sh.hell.compactchess.game.Game;
 import sh.hell.compactchess.game.GameStatus;
 import sh.hell.compactchess.game.Move;
+import sh.hell.compactchess.game.Variant;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -14,15 +14,22 @@ import java.text.NumberFormat;
 
 public class ExampleEngineVSEngine
 {
-	public static void main(String[] args) throws ChessException, IOException, InterruptedException
+	public static void main(String[] args) throws IOException
 	{
-		final Engine whiteEngine = new Engine("lc0.exe", 4).debug(true);
-		final Engine blackEngine = new Engine("stockfish_9.exe", 4).debug(true);
-		final NumberFormat formatter = new DecimalFormat("#0.00");
-		//Game game = new Game().loadFEN("5Bbk/q7/8/p7/8/K7/5P2/6Q1 w - -").start();
-		do
+		final String whiteName = "Stockfish 9";
+		final Engine whiteEngine = new Engine("stockfish_9_multivariant.exe", 4).debug(true);
+		//final String whiteName = "LCZero 594";
+		//final Engine whiteEngine = new Engine("lc0.exe", 4).debug(true);
+		final String blackName = "Stockfish 9";
+		final Engine blackEngine = new Engine("stockfish_9_multivariant.exe", 4).debug(true);
+		//final String blackName = "LCZero 594";
+		//final Engine blackEngine = new Engine("lc0.exe", 4).debug(true);
+		try
 		{
-			final Game game = new Game().setTimed(3000, 100).setPlayerNames("Leela Chess Zero 594", "Stockfish 9").start();
+			final NumberFormat formatter = new DecimalFormat("#0.00");
+			//do
+			//{
+			final Game game = new Game(Variant.THREE_CHECK).setTimed(60000, 1000).setPlayerNames(whiteName, blackName).start();
 			FileWriter fw = new FileWriter("board.svg", false);
 			fw.write(game.toSVG());
 			fw.close();
@@ -31,7 +38,7 @@ public class ExampleEngineVSEngine
 				Engine engine = (game.toMove == Color.WHITE ? whiteEngine : blackEngine);
 				engine.evaluate(game).awaitConclusion();
 				fw = new FileWriter("info.txt", false);
-				fw.write("LCZero 594 VS Stockfish 9\n" + game.getWhiteTime() + "     " + game.getBlackTime() + "\n");
+				fw.write(whiteName + " VS " + blackName + "\n" + game.getWhiteTime() + "  " + game.getBlackTime() + "  +" + (game.increment / 1000) + "s\n");
 				final Move move = engine.getBestMove();
 				if(move == null)
 				{
@@ -53,18 +60,31 @@ public class ExampleEngineVSEngine
 				if(game.status != GameStatus.ONGOING)
 				{
 					System.out.println("Game over: " + game.status.name() + " by " + game.endReason.name());
-					fw.write("\nNew game in 3 seconds.\n");
+					fw.write("\nNew game in 5 seconds.\n");
 					fw.close();
 				}
 				fw.close();
-				fw = new FileWriter("board.svg", false);
-				fw.write(game.toSVG());
-				fw.close();
+				try
+				{
+					fw = new FileWriter("board.svg", false);
+					fw.write(game.toSVG());
+					fw.close();
+				}
+				catch(IOException ignored)
+				{
+				}
 			}
 			while(game.status == GameStatus.ONGOING);
 			System.out.println("\n" + game.toPGN());
-			Thread.sleep(3000);
+			Thread.sleep(5000);
+			//}
+			//while(true);
 		}
-		while(true);
+		catch(Exception e)
+		{
+			e.printStackTrace();
+			whiteEngine.dispose();
+			blackEngine.dispose();
+		}
 	}
 }
