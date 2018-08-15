@@ -5,6 +5,7 @@ import sh.hell.compactchess.game.Color;
 import sh.hell.compactchess.game.Game;
 import sh.hell.compactchess.game.Move;
 import sh.hell.compactchess.game.TimeControl;
+import sh.hell.compactchess.game.Variant;
 
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -30,14 +31,26 @@ public class Engine extends Thread
 	public String bestMove = null;
 	public String ponder = null;
 	public short score = 0;
+	Game evaluatingGame = null;
 	private Process process;
 	private boolean doDebug = false;
 	private int mateIn = 0;
 	private EngineTask task = EngineTask.IDLE;
 	private boolean goingInfinite;
-	private Game evaluatingGame = null;
 	private OutputStreamWriter output;
 	private Scanner input;
+
+	Engine()
+	{
+		this.killer = null;
+		this.binary = null;
+		this.binaryArguments = null;
+		this.threads = 0;
+		this.moveOverhead = 0;
+		this.doPonder = false;
+		this.timeouter = null;
+		this.thread = null;
+	}
 
 	public Engine(String binary, int threads) throws IOException
 	{
@@ -183,6 +196,14 @@ public class Engine extends Thread
 				System.out.println("> setoption name UCI_Variant value " + evaluatingGame.variant.uciName);
 			}
 			output.write("setoption name UCI_Variant value " + evaluatingGame.variant.uciName + "\n");
+			if(evaluatingGame.variant == Variant.CHESS960)
+			{
+				if(this.doDebug)
+				{
+					System.out.println("> setoption name UCI_Chess960 value true");
+				}
+				output.write("setoption name UCI_Chess960 value true\n");
+			}
 			StringBuilder position;
 			//if(game.start.toMove == game.toMove)
 			//{
@@ -221,6 +242,10 @@ public class Engine extends Thread
 				task = EngineTask.START_EVALUATING;
 			}
 			output.write(command + "\n");
+			if(game.timeControl != TimeControl.UNLIMITED)
+			{
+				game.resetMoveTime();
+			}
 			output.flush();
 		}
 		do

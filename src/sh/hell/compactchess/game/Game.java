@@ -10,13 +10,16 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Game
 {
+	public static final short MAX_SCORE = 12800;
 	public final ArrayList<Move> moves = new ArrayList<>();
 	public final ArrayList<Piece> pieces = new ArrayList<>();
 	final public HashMap<String, String> tags = new HashMap<>();
@@ -43,8 +46,6 @@ public class Game
 
 	public Game()
 	{
-		this.tags.put("Event", "https://hell.sh/CompactChess");
-		this.tags.put("Site", "https://hell.sh/CompactChess");
 	}
 
 	public Game(final Variant variant)
@@ -137,8 +138,23 @@ public class Game
 							}
 							else if(!section.equals("") && !section.endsWith(".") && !section.equals("1-0") && !section.equals("0-1") && !section.equals("1/2-1/2") && !section.equals("*"))
 							{
-								move = game.move(section);
-								move.commit(false, dontCalculate);
+								String moveNum = String.valueOf((int) Math.ceil((double) game.plyCount / 2)) + ".";
+								if(section.startsWith(moveNum))
+								{
+									if(section.startsWith(moveNum + ".."))
+									{
+										section = section.substring(moveNum.length() + 2);
+									}
+									else
+									{
+										section = section.substring(moveNum.length());
+									}
+								}
+								if(!section.equals(""))
+								{
+									move = game.move(section);
+									move.commit(false, dontCalculate);
+								}
 							}
 						}
 					}
@@ -228,7 +244,7 @@ public class Game
 					}
 					final Square fromSquare = game.square(fromSquareFile, fromSquareRank);
 					final Square toSquare = game.square(toSquareFile, toSquareRank);
-					lastMove = new Move(game, fromSquare, toSquare, promoteTo);
+					lastMove = new Move(game, fromSquare, toSquare, promoteTo, true);
 					lastMove.commit(false, dontCalculate);
 				}
 			}
@@ -361,10 +377,27 @@ public class Game
 				game.timeControl = (game.increment == 0 ? TimeControl.SUDDEN_DEATH : TimeControl.INCREMENT);
 			}
 		}
-		else if(!key.equalsIgnoreCase("SetUp") && !key.equalsIgnoreCase("PlyCount") && !(key.equalsIgnoreCase("Event") && val.equals("-")))
+		else if(!key.equalsIgnoreCase("SetUp") && !key.equalsIgnoreCase("PlyCount") && !((key.equalsIgnoreCase("Event") || key.equalsIgnoreCase("Site")) && (val.equals("-") || val.equals("http://hell.sh/CompactChess"))))
 		{
 			game.tags.put(key, val);
 		}
+	}
+
+	public static String getRandomChess960Position()
+	{
+		return Game.getChess960Position(ThreadLocalRandom.current().nextInt(1, 961));
+	}
+
+	public static String getChess960Position(int id)
+	{
+		String firstRank = Game.getChess960Positions().get(id);
+		return firstRank + "/pppppppp/8/8/8/8/PPPPPPPP/" + firstRank.toUpperCase() + " w KQkq - 0 1";
+	}
+
+	public static ArrayList<String> getChess960Positions()
+	{
+		// Don't hit me for this. It's just that someone decided it would be a good idea to number every possible chess960 starting position from 0 to 959 and now it's kind of a standard...
+		return new ArrayList<>(Arrays.asList("bbqnnrkr", "bqnbnrkr", "bqnnrbkr", "bqnnrkrb", "qbbnnrkr", "qnbbnrkr", "qnbnrbkr", "qnbnrkrb", "qbnnbrkr", "qnnbbrkr", "qnnrbbkr", "qnnrbkrb", "qbnnrkbr", "qnnbrkbr", "qnnrkbbr", "qnnrkrbb", "bbnqnrkr", "bnqbnrkr", "bnqnrbkr", "bnqnrkrb", "nbbqnrkr", "nqbbnrkr", "nqbnrbkr", "nqbnrkrb", "nbqnbrkr", "nqnbbrkr", "nqnrbbkr", "nqnrbkrb", "nbqnrkbr", "nqnbrkbr", "nqnrkbbr", "nqnrkrbb", "bbnnqrkr", "bnnbqrkr", "bnnqrbkr", "bnnqrkrb", "nbbnqrkr", "nnbbqrkr", "nnbqrbkr", "nnbqrkrb", "nbnqbrkr", "nnqbbrkr", "nnqrbbkr", "nnqrbkrb", "nbnqrkbr", "nnqbrkbr", "nnqrkbbr", "nnqrkrbb", "bbnnrqkr", "bnnbrqkr", "bnnrqbkr", "bnnrqkrb", "nbbnrqkr", "nnbbrqkr", "nnbrqbkr", "nnbrqkrb", "nbnrbqkr", "nnrbbqkr", "nnrqbbkr", "nnrqbkrb", "nbnrqkbr", "nnrbqkbr", "nnrqkbbr", "nnrqkrbb", "bbnnrkqr", "bnnbrkqr", "bnnrkbqr", "bnnrkqrb", "nbbnrkqr", "nnbbrkqr", "nnbrkbqr", "nnbrkqrb", "nbnrbkqr", "nnrbbkqr", "nnrkbbqr", "nnrkbqrb", "nbnrkqbr", "nnrbkqbr", "nnrkqbbr", "nnrkqrbb", "bbnnrkrq", "bnnbrkrq", "bnnrkbrq", "bnnrkrqb", "nbbnrkrq", "nnbbrkrq", "nnbrkbrq", "nnbrkrqb", "nbnrbkrq", "nnrbbkrq", "nnrkbbrq", "nnrkbrqb", "nbnrkrbq", "nnrbkrbq", "nnrkrbbq", "nnrkrqbb", "bbqnrnkr", "bqnbrnkr", "bqnrnbkr", "bqnrnkrb", "qbbnrnkr", "qnbbrnkr", "qnbrnbkr", "qnbrnkrb", "qbnrbnkr", "qnrbbnkr", "qnrnbbkr", "qnrnbkrb", "qbnrnkbr", "qnrbnkbr", "qnrnkbbr", "qnrnkrbb", "bbnqrnkr", "bnqbrnkr", "bnqrnbkr", "bnqrnkrb", "nbbqrnkr", "nqbbrnkr", "nqbrnbkr", "nqbrnkrb", "nbqrbnkr", "nqrbbnkr", "nqrnbbkr", "nqrnbkrb", "nbqrnkbr", "nqrbnkbr", "nqrnkbbr", "nqrnkrbb", "bbnrqnkr", "bnrbqnkr", "bnrqnbkr", "bnrqnkrb", "nbbrqnkr", "nrbbqnkr", "nrbqnbkr", "nrbqnkrb", "nbrqbnkr", "nrqbbnkr", "nrqnbbkr", "nrqnbkrb", "nbrqnkbr", "nrqbnkbr", "nrqnkbbr", "nrqnkrbb", "bbnrnqkr", "bnrbnqkr", "bnrnqbkr", "bnrnqkrb", "nbbrnqkr", "nrbbnqkr", "nrbnqbkr", "nrbnqkrb", "nbrnbqkr", "nrnbbqkr", "nrnqbbkr", "nrnqbkrb", "nbrnqkbr", "nrnbqkbr", "nrnqkbbr", "nrnqkrbb", "bbnrnkqr", "bnrbnkqr", "bnrnkbqr", "bnrnkqrb", "nbbrnkqr", "nrbbnkqr", "nrbnkbqr", "nrbnkqrb", "nbrnbkqr", "nrnbbkqr", "nrnkbbqr", "nrnkbqrb", "nbrnkqbr", "nrnbkqbr", "nrnkqbbr", "nrnkqrbb", "bbnrnkrq", "bnrbnkrq", "bnrnkbrq", "bnrnkrqb", "nbbrnkrq", "nrbbnkrq", "nrbnkbrq", "nrbnkrqb", "nbrnbkrq", "nrnbbkrq", "nrnkbbrq", "nrnkbrqb", "nbrnkrbq", "nrnbkrbq", "nrnkrbbq", "nrnkrqbb", "bbqnrknr", "bqnbrknr", "bqnrkbnr", "bqnrknrb", "qbbnrknr", "qnbbrknr", "qnbrkbnr", "qnbrknrb", "qbnrbknr", "qnrbbknr", "qnrkbbnr", "qnrkbnrb", "qbnrknbr", "qnrbknbr", "qnrknbbr", "qnrknrbb", "bbnqrknr", "bnqbrknr", "bnqrkbnr", "bnqrknrb", "nbbqrknr", "nqbbrknr", "nqbrkbnr", "nqbrknrb", "nbqrbknr", "nqrbbknr", "nqrkbbnr", "nqrkbnrb", "nbqrknbr", "nqrbknbr", "nqrknbbr", "nqrknrbb", "bbnrqknr", "bnrbqknr", "bnrqkbnr", "bnrqknrb", "nbbrqknr", "nrbbqknr", "nrbqkbnr", "nrbqknrb", "nbrqbknr", "nrqbbknr", "nrqkbbnr", "nrqkbnrb", "nbrqknbr", "nrqbknbr", "nrqknbbr", "nrqknrbb", "bbnrkqnr", "bnrbkqnr", "bnrkqbnr", "bnrkqnrb", "nbbrkqnr", "nrbbkqnr", "nrbkqbnr", "nrbkqnrb", "nbrkbqnr", "nrkbbqnr", "nrkqbbnr", "nrkqbnrb", "nbrkqnbr", "nrkbqnbr", "nrkqnbbr", "nrkqnrbb", "bbnrknqr", "bnrbknqr", "bnrknbqr", "bnrknqrb", "nbbrknqr", "nrbbknqr", "nrbknbqr", "nrbknqrb", "nbrkbnqr", "nrkbbnqr", "nrknbbqr", "nrknbqrb", "nbrknqbr", "nrkbnqbr", "nrknqbbr", "nrknqrbb", "bbnrknrq", "bnrbknrq", "bnrknbrq", "bnrknrqb", "nbbrknrq", "nrbbknrq", "nrbknbrq", "nrbknrqb", "nbrkbnrq", "nrkbbnrq", "nrknbbrq", "nrknbrqb", "nbrknrbq", "nrkbnrbq", "nrknrbbq", "nrknrqbb", "bbqnrkrn", "bqnbrkrn", "bqnrkbrn", "bqnrkrnb", "qbbnrkrn", "qnbbrkrn", "qnbrkbrn", "qnbrkrnb", "qbnrbkrn", "qnrbbkrn", "qnrkbbrn", "qnrkbrnb", "qbnrkrbn", "qnrbkrbn", "qnrkrbbn", "qnrkrnbb", "bbnqrkrn", "bnqbrkrn", "bnqrkbrn", "bnqrkrnb", "nbbqrkrn", "nqbbrkrn", "nqbrkbrn", "nqbrkrnb", "nbqrbkrn", "nqrbbkrn", "nqrkbbrn", "nqrkbrnb", "nbqrkrbn", "nqrbkrbn", "nqrkrbbn", "nqrkrnbb", "bbnrqkrn", "bnrbqkrn", "bnrqkbrn", "bnrqkrnb", "nbbrqkrn", "nrbbqkrn", "nrbqkbrn", "nrbqkrnb", "nbrqbkrn", "nrqbbkrn", "nrqkbbrn", "nrqkbrnb", "nbrqkrbn", "nrqbkrbn", "nrqkrbbn", "nrqkrnbb", "bbnrkqrn", "bnrbkqrn", "bnrkqbrn", "bnrkqrnb", "nbbrkqrn", "nrbbkqrn", "nrbkqbrn", "nrbkqrnb", "nbrkbqrn", "nrkbbqrn", "nrkqbbrn", "nrkqbrnb", "nbrkqrbn", "nrkbqrbn", "nrkqrbbn", "nrkqrnbb", "bbnrkrqn", "bnrbkrqn", "bnrkrbqn", "bnrkrqnb", "nbbrkrqn", "nrbbkrqn", "nrbkrbqn", "nrbkrqnb", "nbrkbrqn", "nrkbbrqn", "nrkrbbqn", "nrkrbqnb", "nbrkrqbn", "nrkbrqbn", "nrkrqbbn", "nrkrqnbb", "bbnrkrnq", "bnrbkrnq", "bnrkrbnq", "bnrkrnqb", "nbbrkrnq", "nrbbkrnq", "nrbkrbnq", "nrbkrnqb", "nbrkbrnq", "nrkbbrnq", "nrkrbbnq", "nrkrbnqb", "nbrkrnbq", "nrkbrnbq", "nrkrnbbq", "nrkrnqbb", "bbqrnnkr", "bqrbnnkr", "bqrnnbkr", "bqrnnkrb", "qbbrnnkr", "qrbbnnkr", "qrbnnbkr", "qrbnnkrb", "qbrnbnkr", "qrnbbnkr", "qrnnbbkr", "qrnnbkrb", "qbrnnkbr", "qrnbnkbr", "qrnnkbbr", "qrnnkrbb", "bbrqnnkr", "brqbnnkr", "brqnnbkr", "brqnnkrb", "rbbqnnkr", "rqbbnnkr", "rqbnnbkr", "rqbnnkrb", "rbqnbnkr", "rqnbbnkr", "rqnnbbkr", "rqnnbkrb", "rbqnnkbr", "rqnbnkbr", "rqnnkbbr", "rqnnkrbb", "bbrnqnkr", "brnbqnkr", "brnqnbkr", "brnqnkrb", "rbbnqnkr", "rnbbqnkr", "rnbqnbkr", "rnbqnkrb", "rbnqbnkr", "rnqbbnkr", "rnqnbbkr", "rnqnbkrb", "rbnqnkbr", "rnqbnkbr", "rnqnkbbr", "rnqnkrbb", "bbrnnqkr", "brnbnqkr", "brnnqbkr", "brnnqkrb", "rbbnnqkr", "rnbbnqkr", "rnbnqbkr", "rnbnqkrb", "rbnnbqkr", "rnnbbqkr", "rnnqbbkr", "rnnqbkrb", "rbnnqkbr", "rnnbqkbr", "rnnqkbbr", "rnnqkrbb", "bbrnnkqr", "brnbnkqr", "brnnkbqr", "brnnkqrb", "rbbnnkqr", "rnbbnkqr", "rnbnkbqr", "rnbnkqrb", "rbnnbkqr", "rnnbbkqr", "rnnkbbqr", "rnnkbqrb", "rbnnkqbr", "rnnbkqbr", "rnnkqbbr", "rnnkqrbb", "bbrnnkrq", "brnbnkrq", "brnnkbrq", "brnnkrqb", "rbbnnkrq", "rnbbnkrq", "rnbnkbrq", "rnbnkrqb", "rbnnbkrq", "rnnbbkrq", "rnnkbbrq", "rnnkbrqb", "rbnnkrbq", "rnnbkrbq", "rnnkrbbq", "rnnkrqbb", "bbqrnknr", "bqrbnknr", "bqrnkbnr", "bqrnknrb", "qbbrnknr", "qrbbnknr", "qrbnkbnr", "qrbnknrb", "qbrnbknr", "qrnbbknr", "qrnkbbnr", "qrnkbnrb", "qbrnknbr", "qrnbknbr", "qrnknbbr", "qrnknrbb", "bbrqnknr", "brqbnknr", "brqnkbnr", "brqnknrb", "rbbqnknr", "rqbbnknr", "rqbnkbnr", "rqbnknrb", "rbqnbknr", "rqnbbknr", "rqnkbbnr", "rqnkbnrb", "rbqnknbr", "rqnbknbr", "rqnknbbr", "rqnknrbb", "bbrnqknr", "brnbqknr", "brnqkbnr", "brnqknrb", "rbbnqknr", "rnbbqknr", "rnbqkbnr", "rnbqknrb", "rbnqbknr", "rnqbbknr", "rnqkbbnr", "rnqkbnrb", "rbnqknbr", "rnqbknbr", "rnqknbbr", "rnqknrbb", "bbrnkqnr", "brnbkqnr", "brnkqbnr", "brnkqnrb", "rbbnkqnr", "rnbbkqnr", "rnbkqbnr", "rnbkqnrb", "rbnkbqnr", "rnkbbqnr", "rnkqbbnr", "rnkqbnrb", "rbnkqnbr", "rnkbqnbr", "rnkqnbbr", "rnkqnrbb", "bbrnknqr", "brnbknqr", "brnknbqr", "brnknqrb", "rbbnknqr", "rnbbknqr", "rnbknbqr", "rnbknqrb", "rbnkbnqr", "rnkbbnqr", "rnknbbqr", "rnknbqrb", "rbnknqbr", "rnkbnqbr", "rnknqbbr", "rnknqrbb", "bbrnknrq", "brnbknrq", "brnknbrq", "brnknrqb", "rbbnknrq", "rnbbknrq", "rnbknbrq", "rnbknrqb", "rbnkbnrq", "rnkbbnrq", "rnknbbrq", "rnknbrqb", "rbnknrbq", "rnkbnrbq", "rnknrbbq", "rnknrqbb", "bbqrnkrn", "bqrbnkrn", "bqrnkbrn", "bqrnkrnb", "qbbrnkrn", "qrbbnkrn", "qrbnkbrn", "qrbnkrnb", "qbrnbkrn", "qrnbbkrn", "qrnkbbrn", "qrnkbrnb", "qbrnkrbn", "qrnbkrbn", "qrnkrbbn", "qrnkrnbb", "bbrqnkrn", "brqbnkrn", "brqnkbrn", "brqnkrnb", "rbbqnkrn", "rqbbnkrn", "rqbnkbrn", "rqbnkrnb", "rbqnbkrn", "rqnbbkrn", "rqnkbbrn", "rqnkbrnb", "rbqnkrbn", "rqnbkrbn", "rqnkrbbn", "rqnkrnbb", "bbrnqkrn", "brnbqkrn", "brnqkbrn", "brnqkrnb", "rbbnqkrn", "rnbbqkrn", "rnbqkbrn", "rnbqkrnb", "rbnqbkrn", "rnqbbkrn", "rnqkbbrn", "rnqkbrnb", "rbnqkrbn", "rnqbkrbn", "rnqkrbbn", "rnqkrnbb", "bbrnkqrn", "brnbkqrn", "brnkqbrn", "brnkqrnb", "rbbnkqrn", "rnbbkqrn", "rnbkqbrn", "rnbkqrnb", "rbnkbqrn", "rnkbbqrn", "rnkqbbrn", "rnkqbrnb", "rbnkqrbn", "rnkbqrbn", "rnkqrbbn", "rnkqrnbb", "bbrnkrqn", "brnbkrqn", "brnkrbqn", "brnkrqnb", "rbbnkrqn", "rnbbkrqn", "rnbkrbqn", "rnbkrqnb", "rbnkbrqn", "rnkbbrqn", "rnkrbbqn", "rnkrbqnb", "rbnkrqbn", "rnkbrqbn", "rnkrqbbn", "rnkrqnbb", "bbrnkrnq", "brnbkrnq", "brnkrbnq", "brnkrnqb", "rbbnkrnq", "rnbbkrnq", "rnbkrbnq", "rnbkrnqb", "rbnkbrnq", "rnkbbrnq", "rnkrbbnq", "rnkrbnqb", "rbnkrnbq", "rnkbrnbq", "rnkrnbbq", "rnkrnqbb", "bbqrknnr", "bqrbknnr", "bqrknbnr", "bqrknnrb", "qbbrknnr", "qrbbknnr", "qrbknbnr", "qrbknnrb", "qbrkbnnr", "qrkbbnnr", "qrknbbnr", "qrknbnrb", "qbrknnbr", "qrkbnnbr", "qrknnbbr", "qrknnrbb", "bbrqknnr", "brqbknnr", "brqknbnr", "brqknnrb", "rbbqknnr", "rqbbknnr", "rqbknbnr", "rqbknnrb", "rbqkbnnr", "rqkbbnnr", "rqknbbnr", "rqknbnrb", "rbqknnbr", "rqkbnnbr", "rqknnbbr", "rqknnrbb", "bbrkqnnr", "brkbqnnr", "brkqnbnr", "brkqnnrb", "rbbkqnnr", "rkbbqnnr", "rkbqnbnr", "rkbqnnrb", "rbkqbnnr", "rkqbbnnr", "rkqnbbnr", "rkqnbnrb", "rbkqnnbr", "rkqbnnbr", "rkqnnbbr", "rkqnnrbb", "bbrknqnr", "brkbnqnr", "brknqbnr", "brknqnrb", "rbbknqnr", "rkbbnqnr", "rkbnqbnr", "rkbnqnrb", "rbknbqnr", "rknbbqnr", "rknqbbnr", "rknqbnrb", "rbknqnbr", "rknbqnbr", "rknqnbbr", "rknqnrbb", "bbrknnqr", "brkbnnqr", "brknnbqr", "brknnqrb", "rbbknnqr", "rkbbnnqr", "rkbnnbqr", "rkbnnqrb", "rbknbnqr", "rknbbnqr", "rknnbbqr", "rknnbqrb", "rbknnqbr", "rknbnqbr", "rknnqbbr", "rknnqrbb", "bbrknnrq", "brkbnnrq", "brknnbrq", "brknnrqb", "rbbknnrq", "rkbbnnrq", "rkbnnbrq", "rkbnnrqb", "rbknbnrq", "rknbbnrq", "rknnbbrq", "rknnbrqb", "rbknnrbq", "rknbnrbq", "rknnrbbq", "rknnrqbb", "bbqrknrn", "bqrbknrn", "bqrknbrn", "bqrknrnb", "qbbrknrn", "qrbbknrn", "qrbknbrn", "qrbknrnb", "qbrkbnrn", "qrkbbnrn", "qrknbbrn", "qrknbrnb", "qbrknrbn", "qrkbnrbn", "qrknrbbn", "qrknrnbb", "bbrqknrn", "brqbknrn", "brqknbrn", "brqknrnb", "rbbqknrn", "rqbbknrn", "rqbknbrn", "rqbknrnb", "rbqkbnrn", "rqkbbnrn", "rqknbbrn", "rqknbrnb", "rbqknrbn", "rqkbnrbn", "rqknrbbn", "rqknrnbb", "bbrkqnrn", "brkbqnrn", "brkqnbrn", "brkqnrnb", "rbbkqnrn", "rkbbqnrn", "rkbqnbrn", "rkbqnrnb", "rbkqbnrn", "rkqbbnrn", "rkqnbbrn", "rkqnbrnb", "rbkqnrbn", "rkqbnrbn", "rkqnrbbn", "rkqnrnbb", "bbrknqrn", "brkbnqrn", "brknqbrn", "brknqrnb", "rbbknqrn", "rkbbnqrn", "rkbnqbrn", "rkbnqrnb", "rbknbqrn", "rknbbqrn", "rknqbbrn", "rknqbrnb", "rbknqrbn", "rknbqrbn", "rknqrbbn", "rknqrnbb", "bbrknrqn", "brkbnrqn", "brknrbqn", "brknrqnb", "rbbknrqn", "rkbbnrqn", "rkbnrbqn", "rkbnrqnb", "rbknbrqn", "rknbbrqn", "rknrbbqn", "rknrbqnb", "rbknrqbn", "rknbrqbn", "rknrqbbn", "rknrqnbb", "bbrknrnq", "brkbnrnq", "brknrbnq", "brknrnqb", "rbbknrnq", "rkbbnrnq", "rkbnrbnq", "rkbnrnqb", "rbknbrnq", "rknbbrnq", "rknrbbnq", "rknrbnqb", "rbknrnbq", "rknbrnbq", "rknrnbbq", "rknrnqbb", "bbqrkrnn", "bqrbkrnn", "bqrkrbnn", "bqrkrnnb", "qbbrkrnn", "qrbbkrnn", "qrbkrbnn", "qrbkrnnb", "qbrkbrnn", "qrkbbrnn", "qrkrbbnn", "qrkrbnnb", "qbrkrnbn", "qrkbrnbn", "qrkrnbbn", "qrkrnnbb", "bbrqkrnn", "brqbkrnn", "brqkrbnn", "brqkrnnb", "rbbqkrnn", "rqbbkrnn", "rqbkrbnn", "rqbkrnnb", "rbqkbrnn", "rqkbbrnn", "rqkrbbnn", "rqkrbnnb", "rbqkrnbn", "rqkbrnbn", "rqkrnbbn", "rqkrnnbb", "bbrkqrnn", "brkbqrnn", "brkqrbnn", "brkqrnnb", "rbbkqrnn", "rkbbqrnn", "rkbqrbnn", "rkbqrnnb", "rbkqbrnn", "rkqbbrnn", "rkqrbbnn", "rkqrbnnb", "rbkqrnbn", "rkqbrnbn", "rkqrnbbn", "rkqrnnbb", "bbrkrqnn", "brkbrqnn", "brkrqbnn", "brkrqnnb", "rbbkrqnn", "rkbbrqnn", "rkbrqbnn", "rkbrqnnb", "rbkrbqnn", "rkrbbqnn", "rkrqbbnn", "rkrqbnnb", "rbkrqnbn", "rkrbqnbn", "rkrqnbbn", "rkrqnnbb", "bbrkrnqn", "brkbrnqn", "brkrnbqn", "brkrnqnb", "rbbkrnqn", "rkbbrnqn", "rkbrnbqn", "rkbrnqnb", "rbkrbnqn", "rkrbbnqn", "rkrnbbqn", "rkrnbqnb", "rbkrnqbn", "rkrbnqbn", "rkrnqbbn", "rkrnqnbb", "bbrkrnnq", "brkbrnnq", "brkrnbnq", "brkrnnqb", "rbbkrnnq", "rkbbrnnq", "rkbrnbnq", "rkbrnnqb", "rbkrbnnq", "rkrbbnnq", "rkrnbbnq", "rkrnbnqb", "rbkrnnbq", "rkrbnnbq", "rkrnnbbq", "rkrnnqbb"));
 	}
 
 	public Move uciMove(String uci) throws ChessException
@@ -377,17 +410,95 @@ public class Game
 		{
 			throw new InvalidMoveException("Invalid UCI notation: " + uci);
 		}
+		if(this.variant == Variant.CHESS960)
+		{
+			CastlingType castlingType = CastlingType.NONE;
+			if((whiteCanCastleQueenside && toMove == Color.WHITE && uci.equals("e1c1")) || (blackCanCastleQueenside && toMove == Color.BLACK && uci.equals("e8c8")))
+			{
+				castlingType = CastlingType.QUEENSIDE;
+			}
+			else if((whiteCanCastle && toMove == Color.WHITE && uci.equals("e1g1")) || (blackCanCastleQueenside && toMove == Color.BLACK && uci.equals("e8g8")))
+			{
+				castlingType = CastlingType.KINGSIDE;
+			}
+			if(castlingType != CastlingType.NONE)
+			{
+				byte rank = (byte) (toMove == Color.WHITE ? 0 : 7);
+				byte kingFile = 8;
+				synchronized(this.pieces)
+				{
+					for(Piece p : this.pieces)
+					{
+						if(p.color == toMove && p.type == PieceType.KING)
+						{
+							Square s = p.getSquare();
+							if(s.rank == rank)
+							{
+								kingFile = p.getSquare().file;
+							}
+						}
+					}
+				}
+				if(kingFile != 8)
+				{
+					String rookSquare = null;
+					if(castlingType == CastlingType.QUEENSIDE)
+					{
+						synchronized(this.pieces)
+						{
+							for(Piece p : this.pieces)
+							{
+								if(p.color == toMove && p.type == PieceType.ROOK)
+								{
+									Square s = p.getSquare();
+									if(s.rank == rank && s.file < kingFile)
+									{
+										rookSquare = s.getAlgebraicNotation();
+										break;
+									}
+								}
+							}
+						}
+					}
+					else
+					{
+						synchronized(this.pieces)
+						{
+							for(Piece p : this.pieces)
+							{
+								if(p.color == toMove && p.type == PieceType.ROOK)
+								{
+									Square s = p.getSquare();
+									if(s.rank == rank && s.file > kingFile)
+									{
+										rookSquare = s.getAlgebraicNotation();
+										break;
+									}
+								}
+							}
+						}
+					}
+					if(rookSquare != null)
+					{
+						return new Move(this, square(kingFile, rank), square(rookSquare), null, true);
+					}
+				}
+			}
+		}
 		if(uci.length() == 5)
 		{
-			return new Move(this, square(uci.substring(0, 2)).copy(), square(uci.substring(2, 4)).copy(), PieceType.fromDisplayChar(uci.substring(4, 5)));
+			return new Move(this, square(uci.substring(0, 2)).copy(), square(uci.substring(2, 4)).copy(), PieceType.fromDisplayChar(uci.substring(4, 5)), true);
 		}
 		else
 		{
-			return new Move(this, square(uci.substring(0, 2)).copy(), square(uci.substring(2, 4)).copy());
+			return new Move(this, square(uci.substring(0, 2)).copy(), square(uci.substring(2, 4)).copy(), null, true);
 		}
 	}
 
-	@Deprecated // Use Game.move instead.
+	/**
+	 * @deprecated Use {@link Game#move(String)} instead.
+	 */
+	@Deprecated
 	public Move anMove(String an) throws ChessException
 	{
 		return this.move(an);
@@ -400,11 +511,11 @@ public class Game
 			return null;
 		}
 		move = move.replace("x", "").replace("+", "").replace("?", "").replace("!", "").replace("#", "").replace("=", "").replace("(", "").replace(")", "");
-		if(move.equalsIgnoreCase("O-O-O") || move.equals("0-0-0"))
+		if(move.equalsIgnoreCase("O-O-O") || move.equals("0-0-0") || move.equals("e1c1") || move.equals("e8c8"))
 		{
 			return this.uciMove(toMove == Color.WHITE ? "e1c1" : "e8c8");
 		}
-		else if(move.equalsIgnoreCase("O-O") || move.equals("0-0"))
+		else if(move.equalsIgnoreCase("O-O") || move.equals("0-0") || move.equals("e1g1") || move.equals("e8g8"))
 		{
 			return this.uciMove(toMove == Color.WHITE ? "e1g1" : "e8g8");
 		}
@@ -462,7 +573,7 @@ public class Game
 						for(Piece p : this.pieces)
 						{
 							final Square pSquare = p.getSquare();
-							if(p.color == this.toMove && p.type == pieceType && pSquare.rank == rank && p.getControlledSquares(this).contains(toSquare) && new Move(this, p.getSquare(), toSquare).isLegal())
+							if(p.color == this.toMove && p.type == pieceType && pSquare.rank == rank && this.getSquaresControlledBy(p).contains(toSquare) && new Move(this, p.getSquare(), toSquare, null, true).isLegal())
 							{
 								squares.add(pSquare);
 							}
@@ -477,7 +588,7 @@ public class Game
 						for(Piece p : this.pieces)
 						{
 							final Square pSquare = p.getSquare();
-							if(p.color == this.toMove && p.type == pieceType && pSquare.file == file && p.getControlledSquares(this).contains(toSquare) && new Move(this, p.getSquare(), toSquare).isLegal())
+							if(p.color == this.toMove && p.type == pieceType && pSquare.file == file && this.getSquaresControlledBy(p).contains(toSquare) && new Move(this, p.getSquare(), toSquare, null, true).isLegal())
 							{
 								squares.add(pSquare);
 							}
@@ -491,7 +602,7 @@ public class Game
 				{
 					for(Piece p : this.pieces)
 					{
-						if(p.color == this.toMove && p.type == pieceType && p.getControlledSquares(this).contains(toSquare) && new Move(this, p.getSquare(), toSquare).isLegal())
+						if(p.color == this.toMove && p.type == pieceType && this.getSquaresControlledBy(p).contains(toSquare) && new Move(this, p.getSquare(), toSquare, null, true).isLegal())
 						{
 							squares.add(p.getSquare());
 						}
@@ -508,7 +619,7 @@ public class Game
 			}
 			fromSquare = squares.get(0);
 		}
-		return new Move(this, fromSquare, toSquare, promoteTo);
+		return new Move(this, fromSquare, toSquare, promoteTo, true);
 	}
 
 	public Game setVariant(Variant variant)
@@ -527,61 +638,80 @@ public class Game
 		{
 			throw new ChessException("The game has already started");
 		}
-		if(fen.trim().equalsIgnoreCase("startpos"))
+		fen = fen.trim();
+		if(fen.equalsIgnoreCase("startpos"))
 		{
-			return this.loadFEN(this.variant.startFEN);
+			this.loadFEN(this.variant.startFEN);
 		}
-		String[] arr = fen.split(" ");
-		if(arr.length < 2)
+		else if(fen.equalsIgnoreCase("random960"))
 		{
-			throw new InvalidFENException("Not enough information in FEN: " + fen);
+			this.loadFEN(Game.getRandomChess960Position());
 		}
-		String pieceSequence = arr[0].replace("/", "").replace("8", "        ").replace("7", "       ").replace("6", "      ").replace("5", "     ").replace("4", "    ").replace("3", "   ").replace("2", "  ").replace("1", " ");
-		this.squares = new Square[64];
-		byte file = 0;
-		byte rank = 7;
-		for(char c : pieceSequence.toCharArray())
+		else
 		{
-			String s = String.valueOf(c);
-			Square square = new Square(file, rank);
-			if(!s.equals(" "))
+			String[] arr = fen.split(" ");
+			if(arr.length < 2)
 			{
-				Piece piece = Piece.fromNotationChar(s);
-				this.pieces.add(piece);
-				piece.setSquare(square);
-				square.setPiece(piece);
+				throw new InvalidFENException("Not enough information in FEN: " + fen);
 			}
-			this.squares[Square.index(file, rank)] = square;
-			file++;
-			if(file == 8)
+			String pieceSequence = arr[0].replace("/", "").replace("8", "        ").replace("7", "       ").replace("6", "      ").replace("5", "     ").replace("4", "    ").replace("3", "   ").replace("2", "  ").replace("1", " ");
+			this.squares = new Square[64];
+			byte file = 0;
+			byte rank = 7;
+			for(char c : pieceSequence.toCharArray())
 			{
-				rank--;
-				file = 0;
+				String s = String.valueOf(c);
+				Square square = new Square(file, rank);
+				if(!s.equals(" "))
+				{
+					Piece piece = Piece.fromNotationChar(s);
+					this.pieces.add(piece);
+					piece.setSquare(square);
+					square.setPiece(piece);
+				}
+				this.squares[Square.index(file, rank)] = square;
+				file++;
+				if(file == 8)
+				{
+					rank--;
+					file = 0;
+				}
 			}
-		}
-		this.toMove = ((arr[1].equals("w")) ? Color.WHITE : Color.BLACK);
-		if(arr.length > 2)
-		{
-			if(!arr[2].equals("-"))
+			this.toMove = ((arr[1].equals("w")) ? Color.WHITE : Color.BLACK);
+			if(arr.length > 2)
 			{
 				this.disallowAllCastling();
-				for(char c : arr[2].toCharArray())
+				if(!arr[2].equals("-"))
 				{
-					if(c == 'K')
+					for(char c : arr[2].toCharArray())
 					{
-						whiteCanCastle = true;
+						if(c == 'K')
+						{
+							whiteCanCastle = true;
+						}
+						else if(c == 'Q')
+						{
+							whiteCanCastleQueenside = true;
+						}
+						else if(c == 'k')
+						{
+							blackCanCastle = true;
+						}
+						else if(c == 'q')
+						{
+							blackCanCastleQueenside = true;
+						}
 					}
-					else if(c == 'Q')
+				}
+				if(arr.length > 3)
+				{
+					if(!arr[3].equals("-"))
 					{
-						whiteCanCastleQueenside = true;
+						this.enPassantSquare = this.square(arr[3]);
 					}
-					else if(c == 'k')
+					if(arr.length > 4)
 					{
-						blackCanCastle = true;
-					}
-					else if(c == 'q')
-					{
-						blackCanCastleQueenside = true;
+						this.hundredPliesRuleTimer = Byte.valueOf(arr[4]);
 					}
 				}
 			}
@@ -589,23 +719,29 @@ public class Game
 			{
 				this.determineCastlingAbilities();
 			}
-			if(arr.length > 3)
-			{
-				if(!arr[3].equals("-"))
-				{
-					this.enPassantSquare = this.square(arr[3]);
-				}
-				if(arr.length > 4)
-				{
-					this.hundredPliesRuleTimer = Byte.valueOf(arr[4]);
-				}
-			}
+		}
+		return this;
+	}
+
+	public Game loadChess960Position(int id) throws ChessException
+	{
+		this.loadFEN(Game.getChess960Position(id));
+		return this;
+	}
+
+	public int getChess960PositionID()
+	{
+		String pos;
+		if(this.start != null)
+		{
+			pos = this.start.getPositionalFEN(true).substring(0, 8);
 		}
 		else
 		{
-			this.determineCastlingAbilities();
+			pos = this.getPositionalFEN(true).substring(0, 8);
 		}
-		return this;
+		ArrayList<String> chess960positions = Game.getChess960Positions();
+		return chess960positions.indexOf(pos);
 	}
 
 	public Game blackToMove()
@@ -620,6 +756,15 @@ public class Game
 	public Game opponentToMove()
 	{
 		this.toMove = (this.toMove == Color.WHITE ? Color.BLACK : Color.WHITE);
+		return this;
+	}
+
+	public Game resetMoveTime()
+	{
+		if(this.status == GameStatus.ONGOING && this.plyCount > 1)
+		{
+			this.plyStart = System.currentTimeMillis();
+		}
 		return this;
 	}
 
@@ -796,20 +941,332 @@ public class Game
 		return this;
 	}
 
+	public ArrayList<Square> getSquaresControlledBy(Piece piece)
+	{
+		final ArrayList<Square> squares = new ArrayList<>();
+		final Square square = piece.getSquare();
+		if(piece.type == PieceType.PAWN)
+		{
+			final byte file = square.file;
+			final byte rank = square.rank;
+			Square square_;
+			if(piece.color == Color.WHITE ? rank < 7 : rank > 0)
+			{
+				square_ = this.square(file, (byte) (rank + (piece.color == Color.WHITE ? 1 : -1)));
+				if(!square_.hasPiece())
+				{
+					squares.add(this.square(file, (byte) (rank + (piece.color == Color.WHITE ? 1 : -1))));
+					if((rank == 1 && piece.color == Color.WHITE) || (rank == 6 && piece.color == Color.BLACK))
+					{
+						square_ = this.square(file, (byte) (rank + (piece.color == Color.WHITE ? 2 : -2)));
+						if(!square_.hasPiece())
+						{
+							squares.add(this.square(file, (byte) (rank + (piece.color == Color.WHITE ? 2 : -2))));
+						}
+					}
+				}
+			}
+			if(piece.color == Color.WHITE ? rank < 7 : rank > 0)
+			{
+				if(file > 0)
+				{
+					square_ = this.square((byte) (file - 1), (byte) (rank + (piece.color == Color.WHITE ? 1 : -1)));
+					if((square_.hasPiece() && square_.getPiece().color != piece.color) || square_.equals(this.enPassantSquare))
+					{
+						squares.add(square_);
+					}
+				}
+				if(file < 7)
+				{
+					square_ = this.square((byte) (file + 1), (byte) (rank + (piece.color == Color.WHITE ? 1 : -1)));
+					if((square_.hasPiece() && square_.getPiece().color != piece.color) || square_.equals(this.enPassantSquare))
+					{
+						squares.add(square_);
+					}
+				}
+			}
+		}
+		else if(piece.type == PieceType.KING)
+		{
+			final byte file = square.file;
+			final byte rank = square.rank;
+			for(byte file_add = -1; file_add <= 1; file_add++)
+			{
+				final byte file_ = (byte) (file + file_add);
+				if(file_ >= 0 && file_ < 8)
+				{
+					for(byte rank_add = -1; rank_add <= 1; rank_add++)
+					{
+						final byte rank_ = (byte) (rank + rank_add);
+						if(rank_ >= 0 && rank_ < 8)
+						{
+							final Square square_ = this.square(file_, rank_);
+							if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+							{
+								squares.add(square_);
+							}
+						}
+					}
+				}
+			}
+		}
+		else if(piece.type == PieceType.KNIGHT)
+		{
+			if(square.rank > 1)
+			{
+				if(square.file > 0)
+				{
+					final Square square_ = this.square((byte) (square.file - 1), (byte) (square.rank - 2));
+					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					{
+						squares.add(square_);
+					}
+				}
+				if(square.file < 7)
+				{
+					final Square square_ = this.square((byte) (square.file + 1), (byte) (square.rank - 2));
+					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					{
+						squares.add(square_);
+					}
+				}
+			}
+			if(square.rank < 6)
+			{
+				if(square.file > 0)
+				{
+					final Square square_ = this.square((byte) (square.file - 1), (byte) (square.rank + 2));
+					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					{
+						squares.add(square_);
+					}
+				}
+				if(square.file < 7)
+				{
+					final Square square_ = this.square((byte) (square.file + 1), (byte) (square.rank + 2));
+					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					{
+						squares.add(square_);
+					}
+				}
+			}
+			if(square.file > 1)
+			{
+				if(square.rank > 0)
+				{
+					final Square square_ = this.square((byte) (square.file - 2), (byte) (square.rank - 1));
+					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					{
+						squares.add(square_);
+					}
+				}
+				if(square.rank < 7)
+				{
+					final Square square_ = this.square((byte) (square.file - 2), (byte) (square.rank + 1));
+					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					{
+						squares.add(square_);
+					}
+				}
+			}
+			if(square.file < 6)
+			{
+				if(square.rank > 0)
+				{
+					final Square square_ = this.square((byte) (square.file + 2), (byte) (square.rank - 1));
+					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					{
+						squares.add(square_);
+					}
+				}
+				if(square.rank < 7)
+				{
+					final Square square_ = this.square((byte) (square.file + 2), (byte) (square.rank + 1));
+					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					{
+						squares.add(square_);
+					}
+				}
+			}
+		}
+		else
+		{
+			if(piece.type == PieceType.ROOK || piece.type == PieceType.QUEEN)
+			{
+				byte rank = square.rank;
+				while(rank < 7)
+				{
+					rank++;
+					final Square square_ = this.square(square.file, rank);
+					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					{
+						squares.add(square_);
+					}
+					if(square_.hasPiece())
+					{
+						break;
+					}
+				}
+				rank = square.rank;
+				while(rank > 0)
+				{
+					rank--;
+					final Square square_ = this.square(square.file, rank);
+					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					{
+						squares.add(square_);
+					}
+					if(square_.hasPiece())
+					{
+						break;
+					}
+				}
+				byte file = square.file;
+				while(file < 7)
+				{
+					file++;
+					final Square square_ = this.square(file, square.rank);
+					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					{
+						squares.add(square_);
+					}
+					if(square_.hasPiece())
+					{
+						break;
+					}
+				}
+				file = square.file;
+				while(file > 0)
+				{
+					file--;
+					final Square square_ = this.square(file, square.rank);
+					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					{
+						squares.add(square_);
+					}
+					if(square_.hasPiece())
+					{
+						break;
+					}
+				}
+			}
+			if(piece.type == PieceType.BISHOP || piece.type == PieceType.QUEEN)
+			{
+				byte file = square.file;
+				byte rank = square.rank;
+				while(file < 7 && rank < 7)
+				{
+					file++;
+					rank++;
+					final Square square_ = this.square(file, rank);
+					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					{
+						squares.add(square_);
+					}
+					if(square_.hasPiece())
+					{
+						break;
+					}
+				}
+				file = square.file;
+				rank = square.rank;
+				while(file < 7 && rank > 0)
+				{
+					file++;
+					rank--;
+					final Square square_ = this.square(file, rank);
+					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					{
+						squares.add(square_);
+					}
+					if(square_.hasPiece())
+					{
+						break;
+					}
+				}
+				file = square.file;
+				rank = square.rank;
+				while(file > 0 && rank < 7)
+				{
+					file--;
+					rank++;
+					final Square square_ = this.square(file, rank);
+					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					{
+						squares.add(square_);
+					}
+					if(square_.hasPiece())
+					{
+						break;
+					}
+				}
+				file = square.file;
+				rank = square.rank;
+				while(file > 0 && rank > 0)
+				{
+					file--;
+					rank--;
+					final Square square_ = this.square(file, rank);
+					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					{
+						squares.add(square_);
+					}
+					if(square_.hasPiece())
+					{
+						break;
+					}
+				}
+			}
+		}
+		return squares;
+	}
+
 	public ArrayList<Square> getSquaresControlledBy(Color color)
 	{
-		ArrayList<Square> squares = new ArrayList<>();
+		final ArrayList<Square> squares = new ArrayList<>();
 		synchronized(this.pieces)
 		{
 			for(Piece p : this.pieces)
 			{
 				if(p.color == color)
 				{
-					squares.addAll(p.getControlledSquares(this));
+					squares.addAll(this.getSquaresControlledBy(p));
 				}
 			}
 		}
 		return squares;
+	}
+
+	public ArrayList<Piece> getControllers(Square square)
+	{
+		final ArrayList<Piece> controllers = new ArrayList<>();
+		synchronized(this.pieces)
+		{
+			for(Piece p : pieces)
+			{
+				if(this.getSquaresControlledBy(p).contains(square))
+				{
+					controllers.add(p);
+				}
+			}
+		}
+		return controllers;
+	}
+
+	public ArrayList<Piece> getControllers(Square square, Color color)
+	{
+		final ArrayList<Piece> controllers = new ArrayList<>();
+		synchronized(this.pieces)
+		{
+			for(Piece p : pieces)
+			{
+				if(p.color == color && this.getSquaresControlledBy(p).contains(square))
+				{
+					controllers.add(p);
+				}
+			}
+		}
+		return controllers;
 	}
 
 	public boolean isCheck()
@@ -857,9 +1314,9 @@ public class Game
 				if(p.color == this.toMove)
 				{
 					final Square s = p.getSquare();
-					for(Square s_ : p.getControlledSquares(this))
+					for(Square s_ : this.getSquaresControlledBy(p))
 					{
-						if(new Move(this, s, s_).isLegal())
+						if(new Move(this, s, s_, null, true).isLegal())
 						{
 							return false;
 						}
@@ -952,9 +1409,9 @@ public class Game
 				if(p.color == this.toMove)
 				{
 					final Square s = p.getSquare();
-					for(Square s_ : p.getControlledSquares(this))
+					for(Square s_ : this.getSquaresControlledBy(p))
 					{
-						if(!new Move(this, s, s_).commitTo(this.copy(), true).opponentToMove().isCheck())
+						if(!new Move(this, s, s_, null, true).commitTo(this.copy(), true).opponentToMove().isCheck())
 						{
 							return false;
 						}
@@ -996,7 +1453,27 @@ public class Game
 
 	public Game setPlayerNames(String white, String black)
 	{
-		return this.setTag("White", white).setTag("Black", black);
+		return this.setWhite(white).setBlack(black);
+	}
+
+	public Game setWhite(String name)
+	{
+		return this.setWhite(name, "?");
+	}
+
+	public Game setWhite(String name, String elo)
+	{
+		return this.setTag("White", name).setTag("WhiteElo", elo);
+	}
+
+	public Game setBlack(String name)
+	{
+		return this.setBlack(name, "?");
+	}
+
+	public Game setBlack(String name, String elo)
+	{
+		return this.setTag("Black", name).setTag("BlackElo", elo);
 	}
 
 	private String formatTime(long msecs)
@@ -1183,7 +1660,7 @@ public class Game
 			tags.put("Variant", this.variant.name);
 		}
 		final String startFEN = this.start.getFEN(compact);
-		if(!startFEN.equals(this.variant.startFEN))
+		if(this.variant == Variant.CHESS960 || !startFEN.equals(this.variant.startFEN))
 		{
 			if(!compact)
 			{
@@ -1234,9 +1711,17 @@ public class Game
 		{
 			tags.put("Termination", endReason.pgn_name);
 		}
-		if(tags.containsKey("Site") && tags.containsKey("Event") && tags.get("Site").equals("https://hell.sh/CompactChess") && tags.get("Event").equals("https://hell.sh/CompactChess"))
+		if(!tags.containsKey("Site"))
 		{
-			tags.remove("Event");
+			tags.put("Site", "http://hell.sh/CompactChess");
+			if(!compact && !tags.containsKey("Event"))
+			{
+				tags.put("Event", "-");
+			}
+		}
+		else if(!tags.containsKey("Event"))
+		{
+			tags.put("Event", "http://hell.sh/CompactChess");
 		}
 		return tags;
 	}
@@ -1358,6 +1843,337 @@ public class Game
 			}
 		}
 		os.write(0b10000000);
+	}
+
+	public Game resign(Color resigner)
+	{
+		this.endReason = EndReason.RESIGNATION;
+		this.status = (resigner == Color.WHITE ? GameStatus.BLACK_WINS : GameStatus.WHITE_WINS);
+		return this;
+	}
+
+	public ArrayList<Move> getPossibleMoves() throws ChessException
+	{
+		return this.getPossibleMoves(false);
+	}
+
+	public ArrayList<Move> getPossibleMoves(boolean includeIllegal) throws ChessException
+	{
+		final ArrayList<Move> moves = new ArrayList<>();
+		synchronized(this.pieces)
+		{
+			for(Piece p : this.pieces)
+			{
+				if(p.color == this.toMove)
+				{
+					Square _s = p.getSquare();
+					for(Square s : this.getSquaresControlledBy(p))
+					{
+						Move m = new Move(this, _s, s, null, true);
+						if(includeIllegal || m.isLegal())
+						{
+							if(p.type == PieceType.PAWN && (m.toSquare.rank == 0 || m.toSquare.rank == 7))
+							{
+								for(PieceType pt : this.variant.getPossiblePromotions())
+								{
+									moves.add(new Move(this, _s, s, pt, true));
+								}
+							}
+							else
+							{
+								moves.add(m);
+							}
+						}
+					}
+				}
+			}
+		}
+		if(toMove == Color.WHITE)
+		{
+			if(whiteCanCastle)
+			{
+				Move m = this.uciMove("e1g1");
+				if(includeIllegal || m.isLegal())
+				{
+					moves.add(m);
+				}
+			}
+			if(whiteCanCastleQueenside)
+			{
+				Move m = this.uciMove("e1c1");
+				if(includeIllegal || m.isLegal())
+				{
+					moves.add(m);
+				}
+			}
+		}
+		else
+		{
+			if(blackCanCastle)
+			{
+				Move m = this.uciMove("e8g8");
+				if(includeIllegal || m.isLegal())
+				{
+					moves.add(m);
+				}
+			}
+			if(blackCanCastleQueenside)
+			{
+				Move m = this.uciMove("e8c8");
+				if(includeIllegal || m.isLegal())
+				{
+					moves.add(m);
+				}
+			}
+		}
+		return moves;
+	}
+
+	public short getScore(Color perspective)
+	{
+		if(this.status == GameStatus.WHITE_WINS)
+		{
+			return Game.MAX_SCORE;
+		}
+		else if(this.status == GameStatus.DRAW)
+		{
+			return 0;
+		}
+		else if(this.status == GameStatus.BLACK_WINS)
+		{
+			return (Game.MAX_SCORE * -1);
+		}
+		short whitescore = 0;
+		short blackscore = 0;
+		synchronized(this.pieces)
+		{
+			for(Piece p : this.pieces)
+			{
+				if(p.color == Color.WHITE)
+				{
+					whitescore += this.getScoreOf(p);
+				}
+				else
+				{
+					blackscore += this.getScoreOf(p);
+				}
+			}
+		}
+		if(perspective == Color.WHITE)
+		{
+			return (short) (whitescore - blackscore);
+		}
+		else
+		{
+			return (short) (blackscore - whitescore);
+		}
+	}
+
+	public ArrayList<Piece> getAttackers(Piece piece)
+	{
+		return this.getControllers(piece.getSquare(), piece.color == Color.WHITE ? Color.BLACK : Color.WHITE);
+	}
+
+	public ArrayList<Piece> getDefenders(Piece piece)
+	{
+		return this.getControllers(piece.getSquare(), piece.color);
+	}
+
+	public boolean isHanging(Piece piece)
+	{
+		byte attackers = 0;
+		for(Piece p : getControllers(piece.getSquare()))
+		{
+			if(p.color == piece.color)
+			{
+				return false;
+			}
+			else
+			{
+				attackers++;
+			}
+		}
+		return attackers > 0;
+	}
+
+	public short getScoreOf(Piece piece)
+	{
+		short score = piece.type.scoreValue;
+		final Square square = piece.getSquare();
+		final byte rank;
+		if(piece.color == Color.WHITE)
+		{
+			rank = square.rank;
+		}
+		else
+		{
+			rank = (byte) (7 - square.rank);
+		}
+		final byte file = square.file;
+		if(piece.type == PieceType.PAWN)
+		{
+			if(rank > 1)
+			{
+				if(rank > 2)
+				{
+					score += ((((double) rank - 2) / 6) * 100);
+				}
+				if(file != 3 && file != 4)
+				{
+					if(file != 2 && file != 5)
+					{
+						score -= 17;
+					}
+					else
+					{
+						score -= 9;
+					}
+				}
+			}
+		}
+		final ArrayList<Square> controlledSquares = this.getSquaresControlledBy(piece);
+		score += controlledSquares.size();
+		for(Square s : controlledSquares)
+		{
+			Piece p = s.getPiece();
+			if(p != null)
+			{
+				if(rank == 0 && piece.type == PieceType.KING && (s.rank == 1 || s.rank == 6))
+				{
+					score += 9;
+				}
+				if(p.color == piece.color)
+				{
+					score++;
+				}
+				else
+				{
+					score += p.type.scoreValue / 100;
+				}
+			}
+		}
+		return score;
+	}
+
+	public Move getBestMove(int depth) throws ChessException
+	{
+		Move bestMove = null;
+		int bestMoveScore = 0;
+		if(depth > 2)
+		{
+			for(Move move : getPossibleMoves())
+			{
+				Game game_ = move.commitTo(this.copy(), false);
+				if(game_.status != GameStatus.ONGOING)
+				{
+					return move;
+				}
+				Move reply = game_.getBestMove(depth - 1);
+				if(reply != null)
+				{
+					Move replyReply = reply.commitInCopy(false, false).getBestMove(depth - 2);
+					if(replyReply != null)
+					{
+						int score = replyReply.getScore(this.toMove);
+						if(bestMove == null || bestMoveScore < score || (bestMoveScore == score && Math.random() > 0.73))
+						{
+							bestMove = move;
+							bestMoveScore = score;
+						}
+						continue;
+					}
+				}
+				int score = game_.getScore(this.toMove);
+				if(bestMove == null || bestMoveScore < score)
+				{
+					bestMove = move;
+					bestMoveScore = score;
+				}
+			}
+		}
+		else if(depth > 1)
+		{
+			for(Move move : getPossibleMoves())
+			{
+				Game game_ = move.commitTo(this.copy(), false);
+				if(game_.status != GameStatus.ONGOING)
+				{
+					return move;
+				}
+				Move reply = game_.getBestMove(depth - 1);
+				if(reply == null)
+				{
+					return move;
+				}
+				int score = reply.getScore(this.toMove == Color.WHITE ? Color.BLACK : Color.WHITE);
+				if(bestMove == null || bestMoveScore > score || (bestMoveScore == score && Math.random() > 0.73))
+				{
+					bestMove = move;
+					bestMoveScore = score;
+				}
+			}
+		}
+		else
+		{
+			for(Move move : getPossibleMoves())
+			{
+				int score = move.getScore(this.toMove);
+				if(score == Game.MAX_SCORE)
+				{
+					return move;
+				}
+				if(bestMove == null || bestMoveScore < score || (bestMoveScore == score && Math.random() > 0.73))
+				{
+					bestMove = move;
+					bestMoveScore = score;
+				}
+			}
+		}
+		return bestMove;
+	}
+
+	public short getMaterialScore(Color perspective)
+	{
+		short whitescore = 0;
+		short blackscore = 0;
+		synchronized(this.pieces)
+		{
+			for(Piece p : this.pieces)
+			{
+				if(p.color == Color.WHITE)
+				{
+					whitescore += p.getValue();
+				}
+				else
+				{
+					blackscore += p.getValue();
+				}
+			}
+		}
+		if(perspective == Color.WHITE)
+		{
+			return (short) (whitescore - blackscore);
+		}
+		else
+		{
+			return (short) (blackscore - whitescore);
+		}
+	}
+
+	public short getMaterialScoreOf(Color color)
+	{
+		short score = 0;
+		synchronized(this.pieces)
+		{
+			for(Piece p : this.pieces)
+			{
+				if(p.color == color)
+				{
+					score += p.getValue();
+				}
+			}
+		}
+		return score;
 	}
 
 	public String toString()

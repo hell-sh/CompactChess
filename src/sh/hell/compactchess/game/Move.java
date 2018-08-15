@@ -6,9 +6,6 @@ import sh.hell.compactchess.exceptions.InvalidMoveException;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 
-import static sh.hell.compactchess.game.CastlingType.KINGSIDE;
-import static sh.hell.compactchess.game.CastlingType.NONE;
-import static sh.hell.compactchess.game.CastlingType.QUEENSIDE;
 
 public class Move
 {
@@ -21,18 +18,14 @@ public class Move
 	private final Game _game;
 	public String annotation = "";
 
-	Move(Game game, Square fromSquare, Square toSquare) throws ChessException
+	public Move(Game game, Square fromSquare, Square toSquare, PieceType promoteTo, boolean validate) throws ChessException
 	{
-		this(game, fromSquare, toSquare, null);
-	}
-
-	Move(Game game, Square fromSquare, Square toSquare, PieceType promoteTo) throws ChessException
-	{
+		final Piece piece = fromSquare.getPiece();
 		if(game.status == GameStatus.BUILDING)
 		{
 			throw new InvalidMoveException("The game has not started yet");
 		}
-		if(!fromSquare.hasPiece())
+		if(piece == null)
 		{
 			throw new InvalidMoveException("There's no piece on " + fromSquare.getAlgebraicNotation());
 		}
@@ -40,51 +33,73 @@ public class Move
 		{
 			throw new InvalidMoveException("Can't move to the same square");
 		}
-		if(promoteTo != null && fromSquare.getPiece().type != PieceType.PAWN)
+		if(promoteTo != null)
 		{
-			throw new InvalidMoveException("Only pawns can promote");
-		}
-		if(promoteTo == PieceType.PAWN)
-		{
-			throw new InvalidMoveException("Promoting to a pawn makes no sense");
-		}
-		if(promoteTo == PieceType.KING && game.variant != Variant.ANTICHESS)
-		{
-			throw new InvalidMoveException("You can't promote to king in " + game.variant.name());
-		}
-		this.game = new WeakReference<>(game);
-		this._game = game.copy();
-		this.fromSquare = fromSquare;
-		this.toSquare = toSquare;
-		this.promoteTo = promoteTo;
-		this.isEnPassant = fromSquare.getPiece().type == PieceType.PAWN && toSquare.equals(game.enPassantSquare);
-		final Piece piece = fromSquare.getPiece();
-		if(piece.type == PieceType.KING && fromSquare.file == 4)
-		{
-			if((piece.color == Color.WHITE && fromSquare.rank == 0) || (piece.color == Color.BLACK && fromSquare.rank == 7))
+			if(piece.type != PieceType.PAWN)
 			{
-				if(toSquare.file == 6)
+				throw new InvalidMoveException("Only pawns can be promoted");
+			}
+			if(!game.variant.getPossiblePromotions().contains(promoteTo))
+			{
+				throw new InvalidMoveException("You can't promote to " + promoteTo.name().toLowerCase() + " in " + game.variant.name);
+			}
+		}
+		if(piece.type == PieceType.KING && (piece.color == Color.WHITE ? (fromSquare.rank == 0 && (game.whiteCanCastle || game.whiteCanCastleQueenside)) : (fromSquare.rank == 7 && (game.blackCanCastle || game.blackCanCastleQueenside))))
+		{
+			if(game.variant == Variant.CHESS960)
+			{
+				final Piece toPiece = toSquare.getPiece();
+				if(toPiece != null && toPiece.type == PieceType.ROOK && toPiece.color == piece.color)
 				{
-					this.castlingType = KINGSIDE;
-				}
-				else if(toSquare.file == 2)
-				{
-					this.castlingType = QUEENSIDE;
+					if(toSquare.file > fromSquare.file)
+					{
+						this.castlingType = CastlingType.KINGSIDE;
+					}
+					else
+					{
+						this.castlingType = CastlingType.QUEENSIDE;
+					}
 				}
 				else
 				{
-					this.castlingType = NONE;
+					this.castlingType = CastlingType.NONE;
+				}
+			}
+			else if(fromSquare.file == 4)
+			{
+				if(toSquare.file == 6)
+				{
+					this.castlingType = CastlingType.KINGSIDE;
+				}
+				else if(toSquare.file == 2)
+				{
+					this.castlingType = CastlingType.QUEENSIDE;
+				}
+				else
+				{
+					this.castlingType = CastlingType.NONE;
 				}
 			}
 			else
 			{
-				this.castlingType = NONE;
+				this.castlingType = CastlingType.NONE;
 			}
 		}
 		else
 		{
-			this.castlingType = NONE;
+			this.castlingType = CastlingType.NONE;
 		}
+		if(validate && this.castlingType == CastlingType.NONE && !game.getSquaresControlledBy(fromSquare.getPiece()).contains(toSquare))
+		{
+			throw new InvalidMoveException("Your " + fromSquare.getPiece().type.name().toLowerCase() + " on " + fromSquare.getAlgebraicNotation() + " can't move to " + toSquare.getAlgebraicNotation());
+		}
+		this.game = new WeakReference<>(game);
+		this._game = game.copy();
+		this._game.tags.clear();
+		this.fromSquare = fromSquare;
+		this.toSquare = toSquare;
+		this.promoteTo = promoteTo;
+		this.isEnPassant = fromSquare.getPiece().type == PieceType.PAWN && toSquare.equals(game.enPassantSquare);
 	}
 
 	public Move annotate(String annotation)
@@ -93,23 +108,49 @@ public class Move
 		return this;
 	}
 
-	private void handle(Game game, boolean doCounting) throws ChessException
+	private void handle(Game game, boolean doCounting, boolean dontCalculate) throws ChessException
 	{
-		if(doCounting)
+		Square fromSquare = game.square(this.fromSquare);
+		Piece fromPiece = fromSquare.getPiece();
+		fromSquare.unsetPiece();
+		Square toSquare = null;
+		if(doCounting && this.castlingType != CastlingType.NONE)
 		{
-			switch(this.castlingType)
+			if(this.castlingType == CastlingType.KINGSIDE)
 			{
-				case KINGSIDE:
-					new Move(game, game.square((byte) 7, fromSquare.rank).copy(), game.square((byte) 5, fromSquare.rank).copy()).handle(game, false);
-					break;
-
-				case QUEENSIDE:
-					new Move(game, game.square((byte) 0, fromSquare.rank).copy(), game.square((byte) 3, fromSquare.rank).copy()).handle(game, false);
-					break;
+				if(game.variant == Variant.CHESS960)
+				{
+					if(this.toSquare.file != 5)
+					{
+						new Move(game, game.square(this.toSquare), game.square((byte) 5, fromSquare.rank), null, false).handle(game, false, true);
+					}
+					toSquare = game.square((byte) 6, fromSquare.rank);
+				}
+				else
+				{
+					new Move(game, game.square((byte) 7, fromSquare.rank), game.square((byte) 5, fromSquare.rank), null, false).handle(game, false, true);
+				}
+			}
+			else
+			{
+				if(game.variant == Variant.CHESS960)
+				{
+					if(this.toSquare.file != 3)
+					{
+						new Move(game, game.square(this.toSquare), game.square((byte) 3, fromSquare.rank), null, false).handle(game, false, true);
+					}
+					toSquare = game.square((byte) 2, fromSquare.rank);
+				}
+				else
+				{
+					new Move(game, game.square((byte) 0, fromSquare.rank), game.square((byte) 3, fromSquare.rank), null, false).handle(game, false, true);
+				}
 			}
 		}
-		Square fromSquare = game.square(this.fromSquare);
-		Square toSquare = game.square(this.toSquare);
+		if(toSquare == null)
+		{
+			toSquare = game.square(this.toSquare);
+		}
 		boolean capture = false;
 		if(toSquare.hasPiece())
 		{
@@ -119,9 +160,9 @@ public class Move
 				game.pieces.remove(toSquare.getPiece());
 			}
 		}
-		toSquare.setPiece(fromSquare.getPiece());
+		toSquare.setPiece(fromPiece);
 		toSquare.getPiece().setSquare(toSquare);
-		if(fromSquare.getPiece().type == PieceType.PAWN)
+		if(fromPiece.type == PieceType.PAWN)
 		{
 			if(promoteTo != null)
 			{
@@ -142,8 +183,62 @@ public class Move
 			{
 				game.hundredPliesRuleTimer++;
 			}
+			if(!dontCalculate && game.variant == Variant.CHESS960)
+			{
+				if(fromPiece.type == PieceType.KING)
+				{
+					if(fromPiece.color == Color.WHITE)
+					{
+						game.whiteCanCastle = false;
+						game.whiteCanCastleQueenside = false;
+					}
+					else
+					{
+						game.blackCanCastle = false;
+						game.blackCanCastleQueenside = false;
+					}
+				}
+				else if(fromPiece.type == PieceType.ROOK)
+				{
+					byte kingFile = 8;
+					synchronized(game.pieces)
+					{
+						for(Piece p : game.pieces)
+						{
+							if(p.color == fromPiece.color && p.type == PieceType.KING)
+							{
+								kingFile = p.getSquare().file;
+							}
+						}
+					}
+					if(kingFile != 8)
+					{
+						if(fromSquare.file > kingFile)
+						{
+							if(fromPiece.color == Color.WHITE)
+							{
+								game.whiteCanCastle = false;
+							}
+							else
+							{
+								game.blackCanCastle = false;
+							}
+						}
+						else
+						{
+							if(fromPiece.color == Color.WHITE)
+							{
+								game.whiteCanCastleQueenside = false;
+							}
+							else
+							{
+								game.blackCanCastleQueenside = false;
+							}
+						}
+					}
+				}
+			}
 		}
-		fromSquare.unsetPiece();
 	}
 
 	Game commitTo(Game game, boolean dontCalculate) throws ChessException
@@ -172,7 +267,7 @@ public class Move
 		{
 			game.enPassantSquare = getEnPassantSquare();
 		}
-		this.handle(game, true);
+		this.handle(game, true, dontCalculate);
 		synchronized(game.moves)
 		{
 			game.moves.add(this);
@@ -210,7 +305,10 @@ public class Move
 		game.opponentToMove();
 		if(!dontCalculate)
 		{
-			game.determineCastlingAbilities();
+			if(game.variant != Variant.CHESS960)
+			{
+				game.determineCastlingAbilities();
+			}
 			boolean isCheck = game.isCheck();
 			if(isCheck)
 			{
@@ -253,6 +351,27 @@ public class Move
 		return this.commitTo(game, dontCalculate);
 	}
 
+	public Game commitInCopy() throws ChessException
+	{
+		return this.commitInCopy(false, false);
+	}
+
+	public Game commitInCopy(boolean illegalIsLegal, boolean dontCalculate) throws ChessException
+	{
+		if(this._game == null)
+		{
+			throw new ChessException("Can't commit move to null");
+		}
+		Game game = this._game.copy();
+		if(!illegalIsLegal && this.getIllegalReason() != null)
+		{
+			game.endReason = EndReason.RULES_INFRACTION;
+			game.status = game.toMove == Color.WHITE ? GameStatus.BLACK_WINS : GameStatus.WHITE_WINS;
+			return game;
+		}
+		return this.commitTo(game, dontCalculate);
+	}
+
 	public boolean isLegal() throws ChessException
 	{
 		return this.getIllegalReason() == null;
@@ -283,7 +402,7 @@ public class Move
 			{
 				return "You can't put your opponent in check";
 			}
-			if(this.commitTo(this._game.copy(), true).opponentToMove().isCheck())
+			if(this.commitInCopy(true, true).opponentToMove().isCheck())
 			{
 				if(this._game.isCheck())
 				{
@@ -294,121 +413,113 @@ public class Move
 					return "This would put you in check";
 				}
 			}
-			if(this._game.toMove == Color.WHITE)
+			if(this.castlingType != CastlingType.NONE)
 			{
+				final byte rank = (byte) (this._game.toMove == Color.WHITE ? 0 : 7);
+				final byte rookFile;
+				final ArrayList<Square> opponentControlledSquares;
+				final byte kingDestination;
+				final byte rookDestination;
 				if(this.castlingType == CastlingType.KINGSIDE)
 				{
-					if(!this._game.whiteCanCastle)
+					if(this._game.toMove == Color.WHITE ? !this._game.whiteCanCastle : !this._game.blackCanCastle)
 					{
 						return "You can't castle kingside";
 					}
-					final ArrayList<Square> opponentControlledSquares = this._game.getSquaresControlledBy(Color.BLACK);
-					if(opponentControlledSquares.contains(this._game.square("e1")))
+					opponentControlledSquares = this._game.getSquaresControlledBy(this._game.toMove == Color.WHITE ? Color.BLACK : Color.WHITE);
+					if(opponentControlledSquares.contains(fromSquare))
 					{
 						return "You can't castle while in check";
 					}
-					if(this._game.square("f1").hasPiece())
-					{
-						return "You can't castle because f1 is occupied";
-					}
-					if(opponentControlledSquares.contains(this._game.square("f1")))
-					{
-						return "You can't castle because f1 is under attack";
-					}
-					if(this._game.square("g1").hasPiece())
-					{
-						return "You can't castle because g1 is occupied";
-					}
-					if(opponentControlledSquares.contains(this._game.square("g1")))
-					{
-						return "You can't castle because g1 is under attack";
-					}
+					rookFile = (this._game.variant == Variant.CHESS960 ? toSquare.file : 7);
+					kingDestination = 6;
+					rookDestination = 5;
 				}
-				else if(this.castlingType == CastlingType.QUEENSIDE)
+				else
 				{
-					if(!this._game.whiteCanCastleQueenside)
+					if(this._game.toMove == Color.WHITE ? !this._game.whiteCanCastleQueenside : !this._game.blackCanCastleQueenside)
 					{
 						return "You can't castle queenside";
 					}
-					final ArrayList<Square> opponentControlledSquares = this._game.getSquaresControlledBy(Color.BLACK);
-					if(opponentControlledSquares.contains(this._game.square("e1")))
+					opponentControlledSquares = this._game.getSquaresControlledBy(this._game.toMove == Color.WHITE ? Color.BLACK : Color.WHITE);
+					if(opponentControlledSquares.contains(fromSquare))
 					{
 						return "You can't castle while in check";
 					}
-					if(this._game.square("d1").hasPiece())
+					rookFile = (this._game.variant == Variant.CHESS960 ? toSquare.file : 0);
+					kingDestination = 2;
+					rookDestination = 3;
+				}
+				if(fromSquare.file != kingDestination)
+				{
+					if(fromSquare.file < kingDestination)
 					{
-						return "You can't castle because d1 is occupied";
+						for(byte file = (byte) (fromSquare.file + 1); file <= kingDestination; file++)
+						{
+							if(file != rookFile)
+							{
+								Square s = this._game.square(file, rank);
+								if(s.hasPiece())
+								{
+									return "You can't castle because " + s.getAlgebraicNotation() + " is occupied";
+								}
+								if(opponentControlledSquares.contains(s))
+								{
+									return "You can't castle because " + s.getAlgebraicNotation() + " is under attack";
+								}
+							}
+						}
 					}
-					if(opponentControlledSquares.contains(this._game.square("d1")))
+					else
 					{
-						return "You can't castle because d1 is under attack";
-					}
-					if(this._game.square("c1").hasPiece())
-					{
-						return "You can't castle because c1 is occupied";
-					}
-					if(opponentControlledSquares.contains(this._game.square("c1")))
-					{
-						return "You can't castle because c1 is under attack";
+						for(byte file = (byte) (fromSquare.file - 1); file >= kingDestination; file--)
+						{
+							if(file != rookFile)
+							{
+								Square s = this._game.square(file, rank);
+								if(s.hasPiece())
+								{
+									return "You can't castle because " + s.getAlgebraicNotation() + " is occupied";
+								}
+								if(opponentControlledSquares.contains(s))
+								{
+									return "You can't castle because " + s.getAlgebraicNotation() + " is under attack";
+								}
+							}
+						}
 					}
 				}
-			}
-			else if(this._game.toMove == Color.BLACK)
-			{
-				if(this.castlingType == CastlingType.KINGSIDE)
+				if(rookFile != rookDestination)
 				{
-					if(!this._game.blackCanCastle)
+					if(rookFile < rookDestination)
 					{
-						return "You can't castle kingside";
+						for(byte file = (byte) (rookFile + 1); file <= rookDestination; file++)
+						{
+							Square s = this._game.square(file, rank);
+							if(s.hasPiece())
+							{
+								Piece p = s.getPiece();
+								if(p.type != PieceType.KING || p.color != this._game.toMove)
+								{
+									return "You can't castle because " + s.getAlgebraicNotation() + " is occupied";
+								}
+							}
+						}
 					}
-					final ArrayList<Square> opponentControlledSquares = this._game.getSquaresControlledBy(Color.WHITE);
-					if(opponentControlledSquares.contains(this._game.square("e8")))
+					else
 					{
-						return "You can't castle while in check";
-					}
-					if(this._game.square("f8").hasPiece())
-					{
-						return "You can't castle because f8 is occupied";
-					}
-					if(opponentControlledSquares.contains(this._game.square("f8")))
-					{
-						return "You can't castle because f8 is under attack";
-					}
-					if(this._game.square("g8").hasPiece())
-					{
-						return "You can't castle because g8 is occupied";
-					}
-					if(opponentControlledSquares.contains(this._game.square("g8")))
-					{
-						return "You can't castle because g8 is under attack";
-					}
-				}
-				else if(this.castlingType == CastlingType.QUEENSIDE)
-				{
-					if(!this._game.blackCanCastleQueenside)
-					{
-						return "You can't castle queenside";
-					}
-					final ArrayList<Square> opponentControlledSquares = this._game.getSquaresControlledBy(Color.WHITE);
-					if(opponentControlledSquares.contains(this._game.square("e8")))
-					{
-						return "You can't castle while in check";
-					}
-					if(this._game.square("c8").hasPiece())
-					{
-						return "You can't castle because c8 is occupied";
-					}
-					if(opponentControlledSquares.contains(this._game.square("c8")))
-					{
-						return "You can't castle because d8 is under attack";
-					}
-					if(this._game.square("d8").hasPiece())
-					{
-						return "You can't castle because d8 is occupied";
-					}
-					if(opponentControlledSquares.contains(this._game.square("d8")))
-					{
-						return "You can't castle because d8 is under attack";
+						for(byte file = (byte) (rookFile - 1); file >= rookDestination; file--)
+						{
+							Square s = this._game.square(file, rank);
+							if(s.hasPiece())
+							{
+								Piece p = s.getPiece();
+								if(p.type != PieceType.KING || p.color != this._game.toMove)
+								{
+									return "You can't castle because " + s.getAlgebraicNotation() + " is occupied";
+								}
+							}
+						}
 					}
 				}
 			}
@@ -433,27 +544,32 @@ public class Move
 
 	public boolean isCheck() throws ChessException
 	{
-		return this.commitTo(this._game.copy(), true).isCheck();
+		return this.commitInCopy(true, true).isCheck();
 	}
 
 	public boolean isStalemate() throws ChessException
 	{
-		return this.commitTo(this._game.copy(), true).isStalemate();
+		return this.commitInCopy(true, true).isStalemate();
 	}
 
 	public boolean isStalemate(boolean isCheck) throws ChessException
 	{
-		return this.commitTo(this._game.copy(), true).isStalemate(isCheck);
+		return this.commitInCopy(true, true).isStalemate(isCheck);
 	}
 
 	public boolean isCheckmate() throws ChessException
 	{
-		return this.commitTo(this._game.copy(), true).isCheckmate();
+		return this.commitInCopy(true, true).isCheckmate();
 	}
 
 	public boolean isCheckmate(boolean isCheck) throws ChessException
 	{
-		return this.commitTo(this._game.copy(), true).isCheckmate(true);
+		return this.commitInCopy(true, true).isCheckmate(true);
+	}
+
+	public short getScore(Color perspective) throws ChessException
+	{
+		return this.commitInCopy(true, false).getScore(perspective);
 	}
 
 	public String toUCI()
@@ -523,7 +639,7 @@ public class Move
 						{
 							continue;
 						}
-						if(p.getControlledSquares(_game).contains(toSquare))
+						if(_game.getSquaresControlledBy(p).contains(toSquare))
 						{
 							ambiguities.add(p);
 						}

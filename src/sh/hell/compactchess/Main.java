@@ -1,5 +1,6 @@
 package sh.hell.compactchess;
 
+import sh.hell.compactchess.engine.BuiltInEngine;
 import sh.hell.compactchess.engine.Engine;
 import sh.hell.compactchess.exceptions.ChessException;
 import sh.hell.compactchess.game.AlgebraicNotationVariation;
@@ -9,6 +10,7 @@ import sh.hell.compactchess.game.Move;
 
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -31,6 +33,7 @@ public class Main
 		System.out.println();
 		System.out.println("- [C]onvert Notation");
 		System.out.println("- [E]ngine Operations");
+		System.out.println("- Engine Operations with [B]uilt-in Engine");
 		System.out.println("- E[x]it");
 		System.out.println();
 		do
@@ -52,6 +55,11 @@ public class Main
 				case 'E':
 				case 'e':
 					engineOperations();
+					return;
+
+				case 'B':
+				case 'b':
+					engineOperations(new BuiltInEngine(3));
 					return;
 
 				case 'X':
@@ -278,10 +286,8 @@ public class Main
 						for(Game game : games)
 						{
 							System.out.println(game.toPGN());
-
 							System.out.println();
 						}
-
 						convertNotationTo(games);
 						return;
 
@@ -373,6 +379,7 @@ public class Main
 		System.out.println("What do you want to do with this engine?");
 		System.out.println();
 		System.out.println("- [F]inish Position");
+		System.out.println("- [P]lay Against");
 		System.out.println("- [D]ispose of Engine");
 		System.out.println();
 		do
@@ -389,6 +396,11 @@ public class Main
 				case 'F':
 				case 'f':
 					engineOperationsFinishPosition(engine);
+					return;
+
+				case 'P':
+				case 'p':
+					engineOperationsPlayAgainst(engine);
 					return;
 
 				case 'D':
@@ -434,6 +446,64 @@ public class Main
 			}
 		}
 		while(true);
+		System.out.println();
+		engineOperations(engine);
+	}
+
+	public static void engineOperationsPlayAgainst(Engine engine) throws ChessException, IOException
+	{
+		System.out.println("# CompactChess > Engine Operations > Play Against");
+		System.out.println();
+		final Game game = new Game().start();
+		do
+		{
+			System.out.println(game.toString(true));
+			try
+			{
+				FileWriter fw = new FileWriter("board.svg", false);
+				fw.write(game.toSVG());
+				fw.close();
+			}
+			catch(IOException ignored)
+			{
+			}
+			System.out.print("Your move: ");
+			String rawMove = new Scanner(System.in).useDelimiter("\\n").next();
+			System.out.println();
+			try
+			{
+				Move move = game.move(rawMove);
+				move.commit();
+				String illegalReason = move.getIllegalReason();
+				if(illegalReason != null)
+				{
+					System.out.println("That move was illegal: " + illegalReason);
+				}
+			}
+			catch(ChessException e)
+			{
+				System.out.println(e.getMessage());
+				continue;
+			}
+			System.out.println(game.toString(false));
+			try
+			{
+				FileWriter fw = new FileWriter("board.svg", false);
+				fw.write(game.toSVG());
+				fw.close();
+			}
+			catch(IOException ignored)
+			{
+			}
+			if(game.status != GameStatus.ONGOING)
+			{
+				break;
+			}
+			engine.evaluate(game).awaitConclusion().getBestMove().commit();
+		}
+		while(game.status == GameStatus.ONGOING);
+		System.out.println();
+		System.out.println(game.status + " by " + game.endReason);
 		System.out.println();
 		engineOperations(engine);
 	}

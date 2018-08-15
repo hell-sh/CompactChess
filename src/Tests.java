@@ -3,6 +3,7 @@ import sh.hell.compactchess.engine.Engine;
 import sh.hell.compactchess.engine.EngineBuilder;
 import sh.hell.compactchess.exceptions.ChessException;
 import sh.hell.compactchess.game.AlgebraicNotationVariation;
+import sh.hell.compactchess.game.CastlingType;
 import sh.hell.compactchess.game.Color;
 import sh.hell.compactchess.game.EndReason;
 import sh.hell.compactchess.game.Game;
@@ -30,7 +31,7 @@ public class Tests
 {
 	private static void visualize(Game game)
 	{
-		System.out.println(game.toString(true));
+		System.out.println(game.toString(true, false, false, true));
 	}
 
 	private static void evaluatePossibleMoves(int expectedSquares, Game game, ArrayList<Square> squares)
@@ -125,7 +126,8 @@ public class Tests
 		Move move = game.uciMove("e1c1");
 		move.commit(true, false);
 		visualize(game);
-		assertFalse(move.isLegal());
+		assertEquals(CastlingType.QUEENSIDE, move.castlingType);
+		assertNotNull(move.getIllegalReason());
 		synchronized(game.pieces)
 		{
 			for(Piece p : game.pieces)
@@ -137,8 +139,11 @@ public class Tests
 				}
 			}
 		}
-		game.uciMove("e8g8").commit();
+		move = game.uciMove("e8g8");
+		move.commit();
 		visualize(game);
+		assertEquals(CastlingType.KINGSIDE, move.castlingType);
+		assertNull(move.getIllegalReason());
 		synchronized(game.pieces)
 		{
 			for(Piece p : game.pieces)
@@ -150,6 +155,28 @@ public class Tests
 				}
 			}
 		}
+		game = new Game().loadFEN("rn2k3/8/1R6/8/8/8/8/4K3 b q -").start();
+		visualize(game);
+		assertNotNull(game.uciMove("e8c8").getIllegalReason());
+		move = game.uciMove("b8c6");
+		visualize(move.commit());
+		assertTrue(move.isLegal());
+		game.opponentToMove();
+		move = game.uciMove("e8c8");
+		visualize(move.commit());
+		assertTrue(move.isLegal());
+	}
+
+	@Test(timeout = 1000L)
+	public void controllers() throws ChessException
+	{
+		Game game = new Game().loadFEN("rnbqkb1r/pppppppp/5n2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq -").start();
+		Square s = game.square("e4");
+		Piece p = s.getPiece();
+		assertEquals(1, game.getControllers(s).size());
+		assertEquals(1, game.getAttackers(p).size());
+		assertEquals(0, game.getDefenders(p).size());
+		assertTrue(game.isHanging(p));
 	}
 
 	@Test(timeout = 1000L)
@@ -182,6 +209,9 @@ public class Tests
 		move.commit(true, false);
 		visualize(game);
 		assertFalse(move.isLegal());
+		move.commit();
+		assertEquals(EndReason.RULES_INFRACTION, game.endReason);
+		assertEquals(GameStatus.BLACK_WINS, game.status);
 	}
 
 	@Test(timeout = 1000L)
@@ -296,6 +326,9 @@ public class Tests
 		assertEquals(game, Game.fromPGN(game.toPGN(AlgebraicNotationVariation.RAN)).get(0));
 		game = new Game().loadFEN("8/2K5/4q3/8/3N1N2/6b1/8/7k w - -").start();
 		game.move("Nxe6");
+		game = Game.fromPGN("1.e4").get(0);
+		assertEquals(1, game.moves.size());
+		assertEquals("e4", game.moves.get(0).toAlgebraicNotation());
 	}
 
 	@Test(timeout = 1000L)
@@ -342,8 +375,7 @@ public class Tests
 		assertEquals(Color.BLACK, engine.getMatee());
 		assertNotNull(engine.bestMove);
 		assertEquals("b8a8", engine.bestMove);
-		engine.getBestMove().commit();
-		visualize(game);
+		visualize(engine.getBestMove().commit());
 		engine.evaluate(game, 1000).awaitConclusion();
 		assertTrue(engine.foundMate());
 		assertEquals(1, engine.getMateIn());
@@ -351,9 +383,34 @@ public class Tests
 		assertEquals(Color.BLACK, engine.getMatee());
 		assertNotNull(engine.bestMove);
 		assertEquals("e6d5", engine.bestMove);
-		engine.getBestMove().commit();
-		visualize(game);
+		visualize(engine.getBestMove().commit());
 		engine.dispose();
+	}
+
+	@Test(timeout = 10000L)
+	public void builtInEngine() throws ChessException
+	{
+		System.out.println("Built-in Engine\n");
+		Game game = new Game().loadFEN("3qk3/8/4K3/6Q1/8/8/8/8 w - -").start();
+		visualize(game);
+		Move move = game.getBestMove(1);
+		visualize(move.commit());
+		assertEquals("g5g8", move.toUCI());
+		game = new Game().loadFEN("k3q3/8/3N4/8/8/8/8/7K w - -").start();
+		visualize(game);
+		move = game.getBestMove(2);
+		visualize(move.commit());
+		assertEquals("d6e8", move.toUCI());
+		game = new Game().loadFEN("k3q3/8/5r2/3N4/8/8/8/7K w - -").start();
+		visualize(game);
+		move = game.getBestMove(3);
+		visualize(move.commit());
+		assertEquals("d5c7", move.toUCI());
+		game = new Game().loadFEN("4r2k/p1p1Q3/1b4P1/7p/8/2P1p3/PPP1Kp2/1RB2R2 w - - 1 34").start();
+		visualize(game);
+		move = game.getBestMove(3);
+		visualize(move.commit());
+		assertEquals("e7h7", move.toUCI());
 	}
 
 	@Test(timeout = 2000L)
@@ -437,13 +494,89 @@ public class Tests
 		System.out.println("Racing Kings\n");
 		final Game game = new Game(Variant.RACING_KINGS).loadFEN("8/k6K/8/4q3/8/8/8/8 b").start();
 		visualize(game);
-		assertFalse(game.uciMove("e5h6").isLegal());
+		assertFalse(game.uciMove("e5h5").isLegal());
 		final Move move = game.uciMove("a7a8");
 		move.commit();
 		visualize(game);
 		assertTrue(move.isCheckmate());
 		assertEquals(EndReason.CHECKMATE, game.endReason);
 		assertEquals(GameStatus.BLACK_WINS, game.status);
+	}
+
+	@Test(timeout = 1000L)
+	public void chess960() throws ChessException
+	{
+		System.out.println("Chess960\n");
+		Game game = new Game(Variant.CHESS960).loadChess960Position(959).start();
+		visualize(game);
+		assertEquals(959, game.getChess960PositionID());
+		game = new Game(Variant.CHESS960).loadFEN("3rk3/8/8/8/8/8/8/4KR2 w Kq -").start();
+		visualize(game);
+		assertTrue(game.whiteCanCastle);
+		Move move = game.uciMove("e1f1");
+		move.commit(true, false);
+		visualize(game);
+		assertFalse(game.whiteCanCastle);
+		assertEquals(CastlingType.KINGSIDE, move.castlingType);
+		assertNull(move.getIllegalReason());
+		synchronized(game.pieces)
+		{
+			for(Piece p : game.pieces)
+			{
+				if(p.color == Color.WHITE)
+				{
+					if(p.type == PieceType.ROOK)
+					{
+						assertEquals(5, p.getSquare().file);
+					}
+					else if(p.type == PieceType.KING)
+					{
+						assertEquals(6, p.getSquare().file);
+					}
+				}
+			}
+		}
+		assertTrue(game.blackCanCastleQueenside);
+		move = game.move("O-O-O");
+		move.commit(true, false);
+		visualize(game);
+		assertFalse(game.blackCanCastleQueenside);
+		assertEquals(CastlingType.QUEENSIDE, move.castlingType);
+		assertNull(move.getIllegalReason());
+		synchronized(game.pieces)
+		{
+			for(Piece p : game.pieces)
+			{
+				if(p.type == PieceType.ROOK && p.color == Color.BLACK)
+				{
+					assertEquals(3, p.getSquare().file);
+					break;
+				}
+			}
+		}
+		for(String fen : new String[]{"rk3r2/8/8/8/4R3/8/8/8 b q -", "r2kr3/8/8/8/8/8/8/8 b q -"})
+		{
+			game = new Game(Variant.CHESS960).loadFEN(fen).start();
+			visualize(game);
+			assertTrue(game.blackCanCastleQueenside);
+			move = game.move("O-O-O");
+			move.commit(true, false);
+			visualize(game);
+			assertFalse(game.blackCanCastleQueenside);
+			assertEquals(CastlingType.QUEENSIDE, move.castlingType);
+			assertNull(move.getIllegalReason());
+			synchronized(game.pieces)
+			{
+				for(Piece p : game.pieces)
+				{
+					if(p.type == PieceType.ROOK && p.color == Color.BLACK)
+					{
+						assertEquals(3, p.getSquare().file);
+						break;
+					}
+				}
+			}
+		}
 	}
 
 	// Possible Moves
@@ -458,7 +591,7 @@ public class Tests
 		{
 			if(piece.type == PieceType.ROOK)
 			{
-				squares.addAll(piece.getControlledSquares(game));
+				squares.addAll(game.getSquaresControlledBy(piece));
 			}
 		}
 		evaluatePossibleMoves(8, game, squares);
@@ -474,7 +607,7 @@ public class Tests
 		{
 			if(piece.color == Color.WHITE && piece.type == PieceType.PAWN)
 			{
-				squares.addAll(piece.getControlledSquares(game));
+				squares.addAll(game.getSquaresControlledBy(piece));
 			}
 		}
 		evaluatePossibleMoves(8, game, squares);
@@ -490,7 +623,7 @@ public class Tests
 		{
 			if(piece.type == PieceType.KING)
 			{
-				squares.addAll(piece.getControlledSquares(game));
+				squares.addAll(game.getSquaresControlledBy(piece));
 			}
 		}
 		evaluatePossibleMoves(26, game, squares);
@@ -506,7 +639,7 @@ public class Tests
 		{
 			if(piece.type == PieceType.BISHOP)
 			{
-				squares.addAll(piece.getControlledSquares(game));
+				squares.addAll(game.getSquaresControlledBy(piece));
 			}
 		}
 		evaluatePossibleMoves(13, game, squares);
@@ -522,7 +655,7 @@ public class Tests
 		{
 			if(piece.type == PieceType.QUEEN)
 			{
-				squares.addAll(piece.getControlledSquares(game));
+				squares.addAll(game.getSquaresControlledBy(piece));
 			}
 		}
 		evaluatePossibleMoves(27, game, squares);
@@ -538,7 +671,7 @@ public class Tests
 		{
 			if(piece.type == PieceType.KNIGHT)
 			{
-				squares.addAll(piece.getControlledSquares(game));
+				squares.addAll(game.getSquaresControlledBy(piece));
 			}
 		}
 		evaluatePossibleMoves(22, game, squares);

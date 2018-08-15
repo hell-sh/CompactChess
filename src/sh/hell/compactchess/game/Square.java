@@ -154,10 +154,15 @@ public class Square
 
 	public String toString()
 	{
-		if(piece != null)
+		if(!this.hasPiece())
 		{
-			return "{Square " + getAlgebraicNotation() + " with " + getPiece().toString() + "}";
+			return toStringLite();
 		}
+		return "{Square " + getAlgebraicNotation() + " with " + getPiece().toStringLite() + "}";
+	}
+
+	public String toStringLite()
+	{
 		return "{Square " + getAlgebraicNotation() + "}";
 	}
 
