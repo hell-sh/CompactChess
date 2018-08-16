@@ -2,7 +2,6 @@ package sh.hell.compactchess;
 
 import sh.hell.compactchess.engine.Engine;
 import sh.hell.compactchess.game.Color;
-import sh.hell.compactchess.game.EndReason;
 import sh.hell.compactchess.game.Game;
 import sh.hell.compactchess.game.GameStatus;
 import sh.hell.compactchess.game.Move;
@@ -24,14 +23,14 @@ public class ExampleEngineVSEngine
 		//final Engine whiteEngine = new Engine("lc0.exe", 4).debug(true);
 		//whiteEngine.evaluate(new Game().loadFEN("8/8/8/8/8/8/8/8 w - -").setTimed(1, 0).start()).awaitConclusion();
 		//final String whiteName = "CompactChess";
-		//final Engine whiteEngine = new BuiltInEngine(2);
+		//final Engine whiteEngine = new BuiltInEngine(3);
 		final String blackName = "Stockfish 9";
 		final Engine blackEngine = new Engine("stockfish_9_multivariant.exe", 4).debug(true);
 		//final String blackName = "LCZero 594";
 		//final Engine blackEngine = new Engine("lc0.exe", 4).debug(true);
 		//blackEngine.evaluate(new Game().loadFEN("8/8/8/8/8/8/8/8 w - -").setTimed(1, 0).start()).awaitConclusion();
 		//final String blackName = "CompactChess";
-		//final Engine blackEngine = new BuiltInEngine(2);
+		//final Engine blackEngine = new BuiltInEngine(3);
 		System.out.println("Engines are ready.");
 		try
 		{
@@ -57,15 +56,11 @@ public class ExampleEngineVSEngine
 				else
 				{
 					System.out.println(mover.name() + " played " + move.toUCI() + "\n");
-					fw.write("\n" + mover.name() + "'s evaluation: " + formatter.format((double) engine.score / 100) + "\n");
+					fw.write("\n" + mover.name() + "'s evaluation: " + engine.getEvaluation() + "\n");
 					move.commit();
-					if(game.variant == Variant.STANDARD)
+					if(game.variant == Variant.STANDARD || game.variant == Variant.CHESS960)
 					{
 						fw.write("CompactChess eval.: " + formatter.format((double) game.getScore(mover) / 100) + "\n");
-					}
-					if(engine.foundMate() && game.endReason != EndReason.CHECKMATE)
-					{
-						fw.write(engine.getMatee().name() + " is getting mated in " + engine.getMateIn() + "!\n");
 					}
 				}
 				System.out.println(game.toString(true));

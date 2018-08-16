@@ -5,14 +5,14 @@ import java.util.ArrayList;
 public enum Variant
 {
 	STANDARD("Standard", "chess", "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"),
-	ANTICHESS("Antichess", "giveaway", "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1"),
-	THREE_CHECK("Three-check", "3check", "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"),
-	KING_OF_THE_HILL("King of the Hill", "kingofthehill", "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"),
-	RACING_KINGS("Racing Kings", "racingkings", "8/8/8/8/8/8/krbnNBRK/qrbnNBRQ w - - 0 1"),
-	HORDE("Horde", "horde", "rnbqkbnr/pppppppp/8/1PP2PP1/PPPPPPPP/PPPPPPPP/PPPPPPPP/PPPPPPPP w kq - 0 1"),
-	CHESS960("Chess960", "chess960", "random960");
 	// TODO: Crazyhouse
+	ANTICHESS("Antichess", "giveaway", "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1"),
 	// TODO: Atomic
+	CHESS960("Chess960", "chess960", "random960"),
+	THREE_CHECK("Three-check", "3check", "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"),
+	HORDE("Horde", "horde", "rnbqkbnr/pppppppp/8/1PP2PP1/PPPPPPPP/PPPPPPPP/PPPPPPPP/PPPPPPPP w kq - 0 1"),
+	KING_OF_THE_HILL("King of the Hill", "kingofthehill", "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"),
+	RACING_KINGS("Racing Kings", "racingkings", "8/8/8/8/8/8/krbnNBRK/qrbnNBRQ w - - 0 1");
 
 	public final String name;
 	public final String uciName;

@@ -802,7 +802,7 @@ public class Game
 		{
 			endReason = EndReason.FIFTY_MOVE_RULE;
 		}
-		else if(variant == Variant.STANDARD)
+		else if(variant == Variant.STANDARD || variant == Variant.CHESS960)
 		{
 			boolean definitelySufficientMaterial = false;
 			synchronized(pieces)
@@ -1396,11 +1396,9 @@ public class Game
 				}
 			}
 		}
+		if(!isCheck)
 		{
-			if(!isCheck)
-			{
-				return this.variant == Variant.ANTICHESS && isStalemate(false);
-			}
+			return this.variant == Variant.ANTICHESS && isStalemate(false);
 		}
 		synchronized(this.pieces)
 		{
@@ -1892,18 +1890,32 @@ public class Game
 		{
 			if(whiteCanCastle)
 			{
-				Move m = this.uciMove("e1g1");
-				if(includeIllegal || m.isLegal())
+				try
 				{
-					moves.add(m);
+					Move m = this.uciMove("e1g1");
+					if(includeIllegal || m.isLegal())
+					{
+						moves.add(m);
+					}
+				}
+				catch(InvalidMoveException ignored)
+				{
+
 				}
 			}
 			if(whiteCanCastleQueenside)
 			{
-				Move m = this.uciMove("e1c1");
-				if(includeIllegal || m.isLegal())
+				try
 				{
-					moves.add(m);
+					Move m = this.uciMove("e1c1");
+					if(includeIllegal || m.isLegal())
+					{
+						moves.add(m);
+					}
+				}
+				catch(InvalidMoveException ignored)
+				{
+
 				}
 			}
 		}
@@ -1911,18 +1923,33 @@ public class Game
 		{
 			if(blackCanCastle)
 			{
-				Move m = this.uciMove("e8g8");
-				if(includeIllegal || m.isLegal())
+				try
 				{
-					moves.add(m);
+					Move m = this.uciMove("e8g8");
+					if(includeIllegal || m.isLegal())
+					{
+
+						moves.add(m);
+					}
+				}
+				catch(InvalidMoveException ignored)
+				{
+
 				}
 			}
 			if(blackCanCastleQueenside)
 			{
-				Move m = this.uciMove("e8c8");
-				if(includeIllegal || m.isLegal())
+				try
 				{
-					moves.add(m);
+					Move m = this.uciMove("e8c8");
+					if(includeIllegal || m.isLegal())
+					{
+						moves.add(m);
+					}
+				}
+				catch(InvalidMoveException ignored)
+				{
+
 				}
 			}
 		}
@@ -2285,7 +2312,19 @@ public class Game
 				{
 					Move move = moves.get(moves.size() - 1);
 					svg.append("<g transform=\"translate(").append(move.fromSquare.file * 45).append(",").append(315 - (move.fromSquare.rank * 45)).append(")\"><rect width=\"45\" height=\"45\" style=\"fill:rgba(155,199,0,.41)\"></rect></g>");
-					svg.append("<g transform=\"translate(").append(move.toSquare.file * 45).append(",").append(315 - (move.toSquare.rank * 45)).append(")\"><rect width=\"45\" height=\"45\" style=\"fill:rgba(155,199,0,.41)\"></rect></g>");
+					Square toSquare = move.toSquare;
+					if(this.variant == Variant.CHESS960 && move.castlingType != CastlingType.NONE)
+					{
+						if(move.castlingType == CastlingType.KINGSIDE)
+						{
+							toSquare = this.square((byte) 6, toSquare.rank);
+						}
+						else
+						{
+							toSquare = this.square((byte) 2, toSquare.rank);
+						}
+					}
+					svg.append("<g transform=\"translate(").append(toSquare.file * 45).append(",").append(315 - (toSquare.rank * 45)).append(")\"><rect width=\"45\" height=\"45\" style=\"fill:rgba(155,199,0,.41)\"></rect></g>");
 				}
 			}
 		}

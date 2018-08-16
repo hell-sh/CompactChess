@@ -11,6 +11,8 @@ import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -281,6 +283,19 @@ public class Engine extends Thread
 			this.doDebug = debug;
 		}
 		return this;
+	}
+
+	public String getEvaluation()
+	{
+		final NumberFormat formatter = new DecimalFormat("#0.00");
+		synchronized(LOCK)
+		{
+			if(this.mateIn != 0)
+			{
+				return "#" + this.mateIn;
+			}
+			return formatter.format((double) this.score / 100);
+		}
 	}
 
 	public Move getBestMove() throws ChessException
