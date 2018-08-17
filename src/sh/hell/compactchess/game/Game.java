@@ -23,6 +23,7 @@ public class Game
 	public final ArrayList<Move> moves = new ArrayList<>();
 	public final ArrayList<Piece> pieces = new ArrayList<>();
 	final public HashMap<String, String> tags = new HashMap<>();
+	final HashMap<String, Integer> repetitionPostitions = new HashMap<>();
 	public Game start;
 	public short plyCount = 1;
 	public Variant variant = Variant.STANDARD;
@@ -31,12 +32,13 @@ public class Game
 	public Square enPassantSquare;
 	public TimeControl timeControl = TimeControl.UNLIMITED;
 	public GameStatus status = GameStatus.BUILDING;
+	public EndReason claimableDraw = EndReason.UNTERMINATED;
 	public EndReason endReason = EndReason.UNTERMINATED;
 	public long plyStart;
 	public long increment = 0;
 	public long whitemsecs;
 	public long blackmsecs;
-	public byte hundredPliesRuleTimer;
+	public short drawPlyTimer;
 	public boolean whiteCanCastle = true;
 	public boolean whiteCanCastleQueenside = true;
 	public boolean blackCanCastle = true;
@@ -330,7 +332,7 @@ public class Game
 			{
 				for(EndReason er : EndReason.values())
 				{
-					if(er.pgn_name.equalsIgnoreCase(val))
+					if(er.pgnName.equalsIgnoreCase(val))
 					{
 						game.endReason = er;
 						break;
@@ -711,7 +713,7 @@ public class Game
 					}
 					if(arr.length > 4)
 					{
-						this.hundredPliesRuleTimer = Byte.valueOf(arr[4]);
+						this.drawPlyTimer = Byte.valueOf(arr[4]);
 					}
 				}
 			}
@@ -777,6 +779,10 @@ public class Game
 		}
 		this.start = this.copy();
 		this.status = GameStatus.ONGOING;
+		synchronized(this.repetitionPostitions)
+		{
+			this.repetitionPostitions.put(this.getPositionalFEN(true), 1);
+		}
 		if(!defaultStartPosition)
 		{
 			this.recalculateEndReason(this.isCheck());
@@ -798,9 +804,13 @@ public class Game
 		{
 			endReason = EndReason.TIMEOUT;
 		}
-		else if(hundredPliesRuleTimer == 100)
+		else if(drawPlyTimer > 150)
 		{
-			endReason = EndReason.FIFTY_MOVE_RULE;
+			endReason = EndReason.SEVENTY_FIVE_MOVE_RULE;
+		}
+		else if(drawPlyTimer > 100)
+		{
+			claimableDraw = EndReason.FIFTY_MOVE_RULE;
 		}
 		else if(variant == Variant.STANDARD || variant == Variant.CHESS960)
 		{
@@ -866,12 +876,9 @@ public class Game
 						}
 					}
 				}
-				if((!whiteHasWhiteBishop || !whiteHasBlackBishop) && (!blackHasWhiteBishop || !blackHasBlackBishop))
+				if(((whiteKnights == 0 && (!whiteHasWhiteBishop || !whiteHasBlackBishop)) || (whiteKnights == 1 && !whiteHasWhiteBishop && !whiteHasBlackBishop)) && ((blackKnights == 0 && (!blackHasWhiteBishop || !blackHasBlackBishop)) || (blackKnights == 1 && !blackHasWhiteBishop && !blackHasBlackBishop)))
 				{
-					if(whiteKnights <= 1 && blackKnights <= 1)
-					{
-						endReason = EndReason.INSUFFICIENT_MATERIAL;
-					}
+					endReason = EndReason.INSUFFICIENT_MATERIAL;
 				}
 			}
 		}
@@ -901,7 +908,7 @@ public class Game
 	{
 		if(endReason != EndReason.UNTERMINATED)
 		{
-			if(endReason.isDraw())
+			if(endReason.isDraw)
 			{
 				status = GameStatus.DRAW;
 			}
@@ -1582,11 +1589,11 @@ public class Game
 
 	public String getFEN(final boolean compact)
 	{
-		if(compact && hundredPliesRuleTimer == 0 && plyCount == 1)
+		if(compact && drawPlyTimer == 0 && plyCount == 1)
 		{
 			return this.getPositionalFEN(true);
 		}
-		return this.getPositionalFEN(compact) + " " + hundredPliesRuleTimer + " " + (int) Math.ceil((double) plyCount / 2);
+		return this.getPositionalFEN(compact) + " " + drawPlyTimer + " " + (int) Math.ceil((double) plyCount / 2);
 	}
 
 	public Game allowAllCastling()
@@ -1607,8 +1614,12 @@ public class Game
 		return this;
 	}
 
-	public Game determineCastlingAbilities()
+	void determineCastlingAbilities()
 	{
+		if(this.variant == Variant.CHESS960 || this.variant == Variant.ANTICHESS || this.variant == Variant.RACING_KINGS)
+		{
+			return;
+		}
 		Piece piece = square((byte) 4, (byte) 0).getPiece();
 		if(piece == null || piece.type != PieceType.KING || piece.color != Color.WHITE)
 		{
@@ -1647,7 +1658,6 @@ public class Game
 				blackCanCastleQueenside = false;
 			}
 		}
-		return this;
 	}
 
 	public HashMap<String, String> getExportableTags(boolean compact)
@@ -1705,9 +1715,9 @@ public class Game
 		{
 			tags.put("Result", "*");
 		}
-		if(!compact || (this.endReason != EndReason.UNTERMINATED && !this.endReason.pgn_name.equals("Normal")))
+		if(!compact || (this.endReason != EndReason.UNTERMINATED && !this.endReason.pgnName.equals("Normal")))
 		{
-			tags.put("Termination", endReason.pgn_name);
+			tags.put("Termination", endReason.pgnName);
 		}
 		if(!tags.containsKey("Site"))
 		{
@@ -1841,6 +1851,33 @@ public class Game
 			}
 		}
 		os.write(0b10000000);
+	}
+
+	public boolean canDrawBeClaimed()
+	{
+		return this.endReason == EndReason.UNTERMINATED && this.claimableDraw != EndReason.UNTERMINATED;
+	}
+
+	public Game claimDraw() throws ChessException
+	{
+		if(!canDrawBeClaimed())
+		{
+			throw new ChessException("A draw can not be claimed right now");
+		}
+		this.endReason = this.claimableDraw;
+		this.status = GameStatus.DRAW;
+		return this;
+	}
+
+	public Game agreeToDraw() throws ChessException
+	{
+		if(this.endReason != EndReason.UNTERMINATED)
+		{
+			throw new ChessException("The game is not ongoing");
+		}
+		this.endReason = EndReason.DRAW_AGREEMENT;
+		this.status = GameStatus.DRAW;
+		return this;
 	}
 
 	public Game resign(Color resigner)
@@ -2317,11 +2354,17 @@ public class Game
 					{
 						if(move.castlingType == CastlingType.KINGSIDE)
 						{
-							toSquare = this.square((byte) 6, toSquare.rank);
+							if(move.fromSquare.file != 6)
+							{
+								toSquare = this.square((byte) 6, toSquare.rank);
+							}
 						}
 						else
 						{
-							toSquare = this.square((byte) 2, toSquare.rank);
+							if(move.fromSquare.file != 2)
+							{
+								toSquare = this.square((byte) 2, toSquare.rank);
+							}
 						}
 					}
 					svg.append("<g transform=\"translate(").append(toSquare.file * 45).append(",").append(315 - (toSquare.rank * 45)).append(")\"><rect width=\"45\" height=\"45\" style=\"fill:rgba(155,199,0,.41)\"></rect></g>");
@@ -2365,6 +2408,7 @@ public class Game
 		}
 		game.moves.addAll(moves);
 		game.tags.putAll(tags);
+		game.repetitionPostitions.putAll(repetitionPostitions);
 		game.plyCount = plyCount;
 		game.variant = variant;
 		game.toMove = toMove;
@@ -2374,12 +2418,13 @@ public class Game
 		}
 		game.timeControl = timeControl;
 		game.status = status;
+		game.claimableDraw = claimableDraw;
 		game.endReason = endReason;
 		game.plyStart = plyStart;
 		game.increment = increment;
 		game.whitemsecs = whitemsecs;
 		game.blackmsecs = blackmsecs;
-		game.hundredPliesRuleTimer = hundredPliesRuleTimer;
+		game.drawPlyTimer = drawPlyTimer;
 		return game;
 	}
 
@@ -2388,7 +2433,7 @@ public class Game
 	{
 		if(o2 instanceof Game)
 		{
-			return this.getFEN(true).equals(((Game) o2).getFEN(true)) && ((this.start == null && ((Game) o2).start == null) || (this.start != null && ((Game) o2).start != null && this.start.getFEN(true).equals(((Game) o2).start.getFEN(true)))) && this.plyCount == ((Game) o2).plyCount && this.moves.equals(((Game) o2).moves) && this.variant.equals(((Game) o2).variant) && this.toMove.equals(((Game) o2).toMove) && this.timeControl.equals(((Game) o2).timeControl) && this.status == ((Game) o2).status && this.endReason == ((Game) o2).endReason && this.plyStart == ((Game) o2).plyStart && this.tags.equals(((Game) o2).tags) && this.increment == ((Game) o2).increment && this.whitemsecs == ((Game) o2).whitemsecs && this.blackmsecs == ((Game) o2).blackmsecs;
+			return this.getFEN(true).equals(((Game) o2).getFEN(true)) && ((this.start == null && ((Game) o2).start == null) || (this.start != null && ((Game) o2).start != null && this.start.getFEN(true).equals(((Game) o2).start.getFEN(true)))) && this.plyCount == ((Game) o2).plyCount && this.moves.equals(((Game) o2).moves) && this.repetitionPostitions.equals(((Game) o2).repetitionPostitions) && this.variant.equals(((Game) o2).variant) && this.toMove.equals(((Game) o2).toMove) && this.timeControl.equals(((Game) o2).timeControl) && this.status == ((Game) o2).status && this.claimableDraw == ((Game) o2).claimableDraw && this.endReason == ((Game) o2).endReason && this.plyStart == ((Game) o2).plyStart && this.tags.equals(((Game) o2).tags) && this.increment == ((Game) o2).increment && this.whitemsecs == ((Game) o2).whitemsecs && this.blackmsecs == ((Game) o2).blackmsecs;
 		}
 		return false;
 	}

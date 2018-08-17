@@ -157,6 +157,13 @@ public class Move
 			capture = true;
 			synchronized(game.pieces)
 			{
+				if(!dontCalculate && toSquare.getPiece().type == PieceType.PAWN)
+				{
+					synchronized(game.repetitionPostitions)
+					{
+						game.repetitionPostitions.clear();
+					}
+				}
 				game.pieces.remove(toSquare.getPiece());
 			}
 		}
@@ -170,18 +177,18 @@ public class Move
 			}
 			if(doCounting)
 			{
-				game.hundredPliesRuleTimer = 0;
+				game.drawPlyTimer = 0;
 			}
 		}
 		else if(doCounting)
 		{
 			if(capture)
 			{
-				game.hundredPliesRuleTimer = 0;
+				game.drawPlyTimer = 0;
 			}
 			else
 			{
-				game.hundredPliesRuleTimer++;
+				game.drawPlyTimer++;
 			}
 			if(!dontCalculate && game.variant == Variant.CHESS960)
 			{
@@ -261,11 +268,34 @@ public class Move
 					game.pieces.remove(epPieceSquare.getPiece());
 				}
 				epPieceSquare.unsetPiece();
+				synchronized(game.repetitionPostitions)
+				{
+					game.repetitionPostitions.clear();
+				}
 			}
 		}
 		else
 		{
-			game.enPassantSquare = getEnPassantSquare();
+			Piece piece = game.square(fromSquare).getPiece();
+			if(piece.type == PieceType.PAWN)
+			{
+				if(piece.color == Color.WHITE && fromSquare.rank == 1 && toSquare.rank == 3)
+				{
+					game.enPassantSquare = game.square(fromSquare.file, (byte) (fromSquare.rank + 1));
+				}
+				else if(piece.color == Color.BLACK && fromSquare.rank == 6 && toSquare.rank == 4)
+				{
+					game.enPassantSquare = game.square(fromSquare.file, (byte) (fromSquare.rank - 1));
+				}
+				else
+				{
+					game.enPassantSquare = null;
+				}
+			}
+			else
+			{
+				game.enPassantSquare = null;
+			}
 		}
 		this.handle(game, true, dontCalculate);
 		synchronized(game.moves)
@@ -305,10 +335,7 @@ public class Move
 		game.opponentToMove();
 		if(!dontCalculate)
 		{
-			if(game.variant != Variant.CHESS960)
-			{
-				game.determineCastlingAbilities();
-			}
+			game.determineCastlingAbilities();
 			boolean isCheck = game.isCheck();
 			if(isCheck)
 			{
@@ -321,7 +348,30 @@ public class Move
 					game.blackchecks++;
 				}
 			}
-			game.recalculateEndReason(isCheck);
+			String fen = game.getPositionalFEN(true);
+			synchronized(game.repetitionPostitions)
+			{
+				if(game.repetitionPostitions.containsKey(fen))
+				{
+					int repetitions = game.repetitionPostitions.get(fen) + 1;
+					game.repetitionPostitions.put(fen, repetitions);
+					if(repetitions >= 5)
+					{
+						game.endReason = EndReason.FIVEFOLD_REPETITION;
+						game.recalculateStatus();
+					}
+					else if(repetitions >= 3)
+					{
+						game.claimableDraw = EndReason.THREEFOLD_REPETITION;
+						game.recalculateEndReason(isCheck);
+					}
+				}
+				else
+				{
+					game.repetitionPostitions.put(fen, 1);
+					game.recalculateEndReason(isCheck);
+				}
+			}
 		}
 		else
 		{
@@ -724,23 +774,6 @@ public class Move
 			an.append("+");
 		}
 		return an.toString();
-	}
-
-	public Square getEnPassantSquare()
-	{
-		Piece piece = _game.square(fromSquare).getPiece();
-		if(piece.type == PieceType.PAWN)
-		{
-			if(piece.color == Color.WHITE && fromSquare.rank == 1 && toSquare.rank == 3)
-			{
-				return _game.square(fromSquare.file, (byte) (fromSquare.rank + 1));
-			}
-			else if(piece.color == Color.BLACK && fromSquare.rank == 6 && toSquare.rank == 4)
-			{
-				return _game.square(fromSquare.file, (byte) (fromSquare.rank - 1));
-			}
-		}
-		return null;
 	}
 
 	@Override

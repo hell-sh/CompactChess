@@ -113,8 +113,7 @@ public class Tests
 	public void castling() throws ChessException
 	{
 		System.out.println("Castling\n");
-		Game game = new Game().loadFEN("4k2r/8/8/3q3Q/8/8/8/R3K3 b Qk -").start();
-		game.determineCastlingAbilities();
+		Game game = new Game().loadFEN("4k2r/8/8/3q3Q/8/8/8/R3K3 b").start();
 		assertFalse(game.whiteCanCastle);
 		assertTrue(game.whiteCanCastleQueenside);
 		assertTrue(game.blackCanCastle);
@@ -241,20 +240,66 @@ public class Tests
 		visualize(game);
 		assertTrue(game.isCheck());
 		assertEquals(EndReason.CHECKMATE, game.endReason);
-		assertEquals(game.endReason, EndReason.CHECKMATE);
-		assertEquals(game.status, GameStatus.BLACK_WINS);
+		assertEquals(GameStatus.BLACK_WINS, game.status);
+	}
+
+	@Test(timeout = 1000L)
+	public void repetitionDraw() throws ChessException
+	{
+		final Game game = new Game().loadFEN("8/6k1/8/8/8/8/1KQ5/8 w - -").start(); // 1
+		game.uciMove("c2d2").commit();
+		game.uciMove("g7f7").commit();
+		game.uciMove("d2c2").commit();
+		game.uciMove("f7g7").commit(); // 2
+		game.uciMove("c2d2").commit();
+		game.uciMove("g7f7").commit();
+		game.uciMove("d2c2").commit();
+		assertFalse(game.canDrawBeClaimed());
+		game.uciMove("f7g7").commit(); // 3
+		assertEquals(EndReason.UNTERMINATED, game.endReason);
+		assertEquals(GameStatus.ONGOING, game.status);
+		assertTrue(game.canDrawBeClaimed());
+		assertEquals(EndReason.THREEFOLD_REPETITION, game.claimableDraw);
+		final Game gameCopy = game.copy();
+		gameCopy.claimDraw();
+		assertEquals(EndReason.THREEFOLD_REPETITION, gameCopy.endReason);
+		assertEquals(GameStatus.DRAW, gameCopy.status);
+		assertEquals(EndReason.UNTERMINATED, game.endReason);
+		assertEquals(GameStatus.ONGOING, game.status);
+		game.uciMove("c2d2").commit();
+		game.uciMove("g7f7").commit();
+		game.uciMove("d2c2").commit();
+		game.uciMove("f7g7").commit(); // 4
+		game.uciMove("c2d2").commit();
+		game.uciMove("g7f7").commit();
+		game.uciMove("d2c2").commit();
+		assertEquals(EndReason.UNTERMINATED, game.endReason);
+		assertEquals(GameStatus.ONGOING, game.status);
+		game.uciMove("f7g7").commit(); // 5
+		assertEquals(EndReason.FIVEFOLD_REPETITION, game.endReason);
+		assertEquals(GameStatus.DRAW, game.status);
 	}
 
 	@Test(timeout = 1000L)
 	public void materialDraw() throws ChessException
 	{
 		System.out.println("Draw by Insufficient Material\n");
-		final Game game = new Game().loadFEN("4k3/8/2b5/8/4P3/8/6B1/4K3 b").start();
+		Game game = new Game().loadFEN("4k3/8/2b5/8/4P3/8/6B1/4K3 b").start();
 		visualize(game);
+		assertEquals(EndReason.UNTERMINATED, game.endReason);
+		assertEquals(GameStatus.ONGOING, game.status);
 		game.uciMove("c6e4").commit();
 		visualize(game);
-		assertEquals(game.endReason, EndReason.INSUFFICIENT_MATERIAL);
-		assertEquals(game.status, GameStatus.DRAW);
+		assertEquals(EndReason.INSUFFICIENT_MATERIAL, game.endReason);
+		assertEquals(GameStatus.DRAW, game.status);
+		game = new Game().loadFEN("8/8/8/2k1NK2/4B3/8/8/8 w - -").start();
+		visualize(game);
+		assertEquals(EndReason.UNTERMINATED, game.endReason);
+		assertEquals(GameStatus.ONGOING, game.status);
+		game = new Game().loadFEN("8/8/8/2k2K2/2b2B2/8/8/8 w - -").start();
+		visualize(game);
+		assertEquals(EndReason.INSUFFICIENT_MATERIAL, game.endReason);
+		assertEquals(GameStatus.DRAW, game.status);
 	}
 
 	@Test(timeout = 1000L)
