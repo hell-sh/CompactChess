@@ -27,13 +27,4 @@ public enum EndReason
 		this.pgnName = pgnName;
 		this.isDraw = isDraw;
 	}
-
-	/**
-	 * @deprecated Use the EndReason.isDraw property instead
-	 */
-	@Deprecated
-	public boolean isDraw()
-	{
-		return this.isDraw;
-	}
 }

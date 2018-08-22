@@ -18,16 +18,11 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
 
-public class Engine extends Thread
+public class Engine extends EngineBuilder
 {
 	public final EngineKiller killer;
 	private final Object LOCK = new Object();
 	private final Object CONCLUDE_LOCK = new Object();
-	private final String binary;
-	private final List<String> binaryArguments;
-	private final byte threads;
-	private final int moveOverhead;
-	private final boolean doPonder;
 	private final EngineTimeouter timeouter;
 	private final Thread thread;
 	public String bestMove = null;
@@ -44,12 +39,8 @@ public class Engine extends Thread
 
 	Engine()
 	{
+		super();
 		this.killer = null;
-		this.binary = null;
-		this.binaryArguments = null;
-		this.threads = 0;
-		this.moveOverhead = 0;
-		this.doPonder = false;
 		this.timeouter = null;
 		this.thread = null;
 	}
@@ -85,16 +76,17 @@ public class Engine extends Thread
 
 	public Engine(String binary, List<String> binaryArguments, int threads, int moveOverhead, boolean doPonder) throws IOException
 	{
-		this.binary = binary;
-		this.binaryArguments = binaryArguments;
-		this.threads = (byte) threads;
-		this.moveOverhead = moveOverhead;
-		this.doPonder = doPonder;
+		super(binary, binaryArguments, threads, moveOverhead, doPonder);
 		this.assumeDead();
 		this.timeouter = new EngineTimeouter(this);
 		this.killer = new EngineKiller(this);
 		this.thread = new Thread(this, "Engine " + binary);
 		this.thread.start();
+	}
+
+	public Engine copy() throws IOException
+	{
+		return super.build();
 	}
 
 	void assumeDead() throws IOException

@@ -1,5 +1,3 @@
-package sh.hell.compactchess;
-
 import sh.hell.compactchess.engine.Engine;
 import sh.hell.compactchess.game.Color;
 import sh.hell.compactchess.game.Game;
@@ -37,7 +35,7 @@ public class ExampleEngineVSEngine
 			final NumberFormat formatter = new DecimalFormat("#0.00");
 			do
 			{
-				final Game game = new Game(Variant.CHESS960).setTimed(60000, 1000).setPlayerNames(whiteName, blackName).setTag("Event", "Engine VS Engine").start();
+				final Game game = new Game(Variant.KING_OF_THE_HILL).setTimed(60000, 1000).setPlayerNames(whiteName, blackName).setTag("Event", "Engine VS Engine").start();
 				FileWriter fw = new FileWriter("board.svg", false);
 				fw.write(game.toSVG());
 				fw.close();
@@ -46,7 +44,7 @@ public class ExampleEngineVSEngine
 					Color mover = game.toMove;
 					Engine engine = (mover == Color.WHITE ? whiteEngine : blackEngine);
 					final Move move;
-					move = engine.evaluate(game).awaitConclusion().getBestMove();
+					move = engine.evaluate(game.resetMoveTime()).awaitConclusion().getBestMove();
 					fw = new FileWriter("info.txt", false);
 					fw.write(whiteName + " VS " + blackName + "\n" + game.getWhiteTime() + "  " + game.getBlackTime() + "  +" + (game.increment / 1000) + "s\n");
 					if(engine.score == 0 && game.canDrawBeClaimed())

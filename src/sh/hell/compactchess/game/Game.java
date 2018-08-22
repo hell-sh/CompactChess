@@ -45,6 +45,7 @@ public class Game
 	public boolean blackCanCastleQueenside = true;
 	public byte whitechecks = 0;
 	public byte blackchecks = 0;
+	private boolean exportable = true;
 
 	public Game()
 	{
@@ -497,15 +498,6 @@ public class Game
 		}
 	}
 
-	/**
-	 * @deprecated Use {@link Game#move(String)} instead.
-	 */
-	@Deprecated
-	public Move anMove(String an) throws ChessException
-	{
-		return this.move(an);
-	}
-
 	public Move move(String move) throws ChessException
 	{
 		if(move == null || move.equals("(none)"))
@@ -630,6 +622,10 @@ public class Game
 		{
 			throw new RuntimeException("Variant can't be null.");
 		}
+		if(this.status != GameStatus.BUILDING)
+		{
+			this.exportable = false;
+		}
 		this.variant = variant;
 		return this;
 	}
@@ -638,7 +634,7 @@ public class Game
 	{
 		if(this.status != GameStatus.BUILDING)
 		{
-			throw new ChessException("The game has already started");
+			this.exportable = false;
 		}
 		fen = fen.trim();
 		if(fen.equalsIgnoreCase("startpos"))
@@ -682,7 +678,10 @@ public class Game
 			this.toMove = ((arr[1].equals("w")) ? Color.WHITE : Color.BLACK);
 			if(arr.length > 2)
 			{
-				this.disallowAllCastling();
+				whiteCanCastle = false;
+				whiteCanCastleQueenside = false;
+				blackCanCastle = false;
+				blackCanCastleQueenside = false;
 				if(!arr[2].equals("-"))
 				{
 					for(char c : arr[2].toCharArray())
@@ -748,8 +747,12 @@ public class Game
 
 	public Game blackToMove()
 	{
-		if(toMove != Color.BLACK)
+		if(this.toMove != Color.BLACK)
 		{
+			if(this.status != GameStatus.BUILDING)
+			{
+				this.exportable = false;
+			}
 			this.toMove = Color.BLACK;
 		}
 		return this;
@@ -757,6 +760,10 @@ public class Game
 
 	public Game opponentToMove()
 	{
+		if(this.status != GameStatus.BUILDING)
+		{
+			this.exportable = false;
+		}
 		this.toMove = (this.toMove == Color.WHITE ? Color.BLACK : Color.WHITE);
 		return this;
 	}
@@ -943,6 +950,10 @@ public class Game
 
 	public Game insertPiece(final Piece piece, final Square square)
 	{
+		if(this.status != GameStatus.BUILDING)
+		{
+			this.exportable = false;
+		}
 		piece.setSquare(square);
 		square.setPiece(piece);
 		return this;
@@ -1427,22 +1438,14 @@ public class Game
 		return true;
 	}
 
-	public Game setUnlimitedTime() throws ChessException
+	public Game setUnlimitedTime()
 	{
-		if(this.status != GameStatus.BUILDING)
-		{
-			throw new ChessException("The game has already started");
-		}
 		this.timeControl = TimeControl.UNLIMITED;
 		return this;
 	}
 
-	public Game setTimed(long msecs, long increment) throws ChessException
+	public Game setTimed(long msecs, long increment)
 	{
-		if(this.status != GameStatus.BUILDING)
-		{
-			throw new ChessException("The game has already started");
-		}
 		this.timeControl = (increment == 0 ? TimeControl.SUDDEN_DEATH : TimeControl.INCREMENT);
 		this.whitemsecs = msecs;
 		this.blackmsecs = msecs;
@@ -1596,24 +1599,6 @@ public class Game
 		return this.getPositionalFEN(compact) + " " + drawPlyTimer + " " + (int) Math.ceil((double) plyCount / 2);
 	}
 
-	public Game allowAllCastling()
-	{
-		whiteCanCastle = true;
-		whiteCanCastleQueenside = true;
-		blackCanCastle = true;
-		blackCanCastleQueenside = true;
-		return this;
-	}
-
-	public Game disallowAllCastling()
-	{
-		whiteCanCastle = false;
-		whiteCanCastleQueenside = false;
-		blackCanCastle = false;
-		blackCanCastleQueenside = false;
-		return this;
-	}
-
 	void determineCastlingAbilities()
 	{
 		if(this.variant == Variant.CHESS960 || this.variant == Variant.ANTICHESS || this.variant == Variant.RACING_KINGS)
@@ -1751,6 +1736,10 @@ public class Game
 
 	public String toPGN(boolean noTags, AlgebraicNotationVariation anvariation) throws ChessException
 	{
+		if(!exportable)
+		{
+			throw new ChessException("The game has been modified in a way that PGN can not express");
+		}
 		StringBuilder pgn = new StringBuilder();
 		final HashMap<String, String> tags = this.getExportableTags(false);
 		if(!noTags)
@@ -1801,7 +1790,7 @@ public class Game
 		return pgn.toString();
 	}
 
-	public byte[] toCGN() throws IOException
+	public byte[] toCGN() throws IOException, ChessException
 	{
 		final ByteArrayOutputStream os = new ByteArrayOutputStream();
 		this.toCGN(os);
@@ -1810,8 +1799,12 @@ public class Game
 		return bytes;
 	}
 
-	public void toCGN(OutputStream os) throws IOException
+	public void toCGN(OutputStream os) throws IOException, ChessException
 	{
+		if(!exportable)
+		{
+			throw new ChessException("The game has been modified in a way that PGN can not express");
+		}
 		final HashMap<String, String> tags = this.getExportableTags(true);
 		os.write(tags.size());
 		for(Map.Entry<String, String> tag : tags.entrySet())
@@ -2425,6 +2418,7 @@ public class Game
 		game.whitemsecs = whitemsecs;
 		game.blackmsecs = blackmsecs;
 		game.drawPlyTimer = drawPlyTimer;
+		game.exportable = exportable;
 		return game;
 	}
 
@@ -2433,7 +2427,7 @@ public class Game
 	{
 		if(o2 instanceof Game)
 		{
-			return this.getFEN(true).equals(((Game) o2).getFEN(true)) && ((this.start == null && ((Game) o2).start == null) || (this.start != null && ((Game) o2).start != null && this.start.getFEN(true).equals(((Game) o2).start.getFEN(true)))) && this.plyCount == ((Game) o2).plyCount && this.moves.equals(((Game) o2).moves) && this.repetitionPostitions.equals(((Game) o2).repetitionPostitions) && this.variant.equals(((Game) o2).variant) && this.toMove.equals(((Game) o2).toMove) && this.timeControl.equals(((Game) o2).timeControl) && this.status == ((Game) o2).status && this.claimableDraw == ((Game) o2).claimableDraw && this.endReason == ((Game) o2).endReason && this.plyStart == ((Game) o2).plyStart && this.tags.equals(((Game) o2).tags) && this.increment == ((Game) o2).increment && this.whitemsecs == ((Game) o2).whitemsecs && this.blackmsecs == ((Game) o2).blackmsecs;
+			return this.getFEN(true).equals(((Game) o2).getFEN(true)) && ((this.start == null && ((Game) o2).start == null) || (this.start != null && ((Game) o2).start != null && this.start.getFEN(true).equals(((Game) o2).start.getFEN(true)))) && this.plyCount == ((Game) o2).plyCount && this.moves.equals(((Game) o2).moves) && this.repetitionPostitions.equals(((Game) o2).repetitionPostitions) && this.variant.equals(((Game) o2).variant) && this.toMove.equals(((Game) o2).toMove) && this.timeControl.equals(((Game) o2).timeControl) && this.status == ((Game) o2).status && this.claimableDraw == ((Game) o2).claimableDraw && this.endReason == ((Game) o2).endReason && this.plyStart == ((Game) o2).plyStart && this.tags.equals(((Game) o2).tags) && this.increment == ((Game) o2).increment && this.whitemsecs == ((Game) o2).whitemsecs && this.blackmsecs == ((Game) o2).blackmsecs && this.exportable == ((Game) o2).exportable;
 		}
 		return false;
 	}

@@ -332,7 +332,7 @@ public class Move
 			}
 		}
 		game.plyCount++;
-		game.opponentToMove();
+		game.toMove = (game.toMove == Color.WHITE ? Color.BLACK : Color.WHITE);
 		if(!dontCalculate)
 		{
 			game.determineCastlingAbilities();

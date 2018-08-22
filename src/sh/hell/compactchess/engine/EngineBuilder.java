@@ -4,13 +4,22 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class EngineBuilder
+public class EngineBuilder extends Thread
 {
-	public String binary;
-	public List<String> binaryArguments;
-	public byte threads;
-	public int moveOverhead;
-	public boolean doPonder;
+	final String binary;
+	final List<String> binaryArguments;
+	final byte threads;
+	final int moveOverhead;
+	final boolean doPonder;
+
+	EngineBuilder()
+	{
+		this.binary = null;
+		this.binaryArguments = null;
+		this.threads = 0;
+		this.moveOverhead = 0;
+		this.doPonder = false;
+	}
 
 	public EngineBuilder(String binary, int threads)
 	{
@@ -48,18 +57,6 @@ public class EngineBuilder
 		this.threads = (byte) threads;
 		this.moveOverhead = moveOverhead;
 		this.doPonder = doPonder;
-	}
-
-	public EngineBuilder setMoveOverhead(int moveOverhead)
-	{
-		this.moveOverhead = moveOverhead;
-		return this;
-	}
-
-	public EngineBuilder ponder(boolean doPonder)
-	{
-		this.doPonder = doPonder;
-		return this;
 	}
 
 	public Engine build() throws IOException

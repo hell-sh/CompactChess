@@ -1,7 +1,6 @@
 package sh.hell.compactchess.game;
 
 import java.lang.ref.WeakReference;
-import java.util.ArrayList;
 
 public class Piece
 {
@@ -59,15 +58,6 @@ public class Piece
 			isWhite = !isWhite;
 		}
 		return (isWhite ? type.whiteSymbol : type.blackSymbol);
-	}
-
-	/**
-	 * @deprecated Use {@link Game#getSquaresControlledBy(Piece)} instead.
-	 */
-	@Deprecated
-	public ArrayList<Square> getControlledSquares(Game game)
-	{
-		return game.getSquaresControlledBy(this);
 	}
 
 	public byte getValue()
