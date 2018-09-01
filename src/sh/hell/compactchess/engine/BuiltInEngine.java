@@ -5,6 +5,7 @@ import sh.hell.compactchess.game.Game;
 import sh.hell.compactchess.game.Move;
 import sh.hell.compactchess.game.TimeControl;
 
+@SuppressWarnings({"WeakerAccess", "UnusedReturnValue", "unused"})
 public class BuiltInEngine extends Engine
 {
 	public int defaultDepth;

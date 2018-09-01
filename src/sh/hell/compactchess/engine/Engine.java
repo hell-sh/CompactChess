@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
 
+@SuppressWarnings({"WeakerAccess", "UnusedReturnValue", "unused"})
 public class Engine extends EngineBuilder
 {
 	public final EngineKiller killer;

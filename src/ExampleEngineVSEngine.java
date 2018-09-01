@@ -35,7 +35,7 @@ public class ExampleEngineVSEngine
 			final NumberFormat formatter = new DecimalFormat("#0.00");
 			do
 			{
-				final Game game = new Game(Variant.KING_OF_THE_HILL).setTimed(60000, 1000).setPlayerNames(whiteName, blackName).setTag("Event", "Engine VS Engine").start();
+				final Game game = new Game().setTimed(15000, 0).setPlayerNames(whiteName, blackName).setTag("Event", "Engine VS Engine").start();
 				FileWriter fw = new FileWriter("board.svg", false);
 				fw.write(game.toSVG());
 				fw.close();

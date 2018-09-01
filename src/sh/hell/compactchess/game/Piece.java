@@ -2,6 +2,7 @@ package sh.hell.compactchess.game;
 
 import java.lang.ref.WeakReference;
 
+@SuppressWarnings({"WeakerAccess", "UnusedReturnValue", "unused"})
 public class Piece
 {
 	public final Color color;

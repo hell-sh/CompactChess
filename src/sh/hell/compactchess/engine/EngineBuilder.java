@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+@SuppressWarnings({"WeakerAccess", "UnusedReturnValue", "unused"})
 public class EngineBuilder extends Thread
 {
 	final String binary;

@@ -9,20 +9,25 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.TimeZone;
+import java.util.TreeMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+@SuppressWarnings({"WeakerAccess", "UnusedReturnValue", "unused"})
 public class Game
 {
 	public static final short MAX_SCORE = 12800;
 	public final ArrayList<Move> moves = new ArrayList<>();
 	public final ArrayList<Piece> pieces = new ArrayList<>();
-	final public HashMap<String, String> tags = new HashMap<>();
+	final public TreeMap<String, String> tags = new TreeMap<>(new PGNTagComparator());
 	final HashMap<String, Integer> repetitionPostitions = new HashMap<>();
 	public Game start;
 	public short plyCount = 1;
@@ -66,30 +71,35 @@ public class Game
 	{
 		pgn = pgn.replace("\r", "").replace("]\n\n", "]\n");
 		final ArrayList<Game> games = new ArrayList<>();
-		final String pgnTagRegex = "\\[([A-Za-z0-9]+) \"(.*[^\\\\])\"\\]";
+		final String pgnTagPattern = "\\[([A-Za-z0-9]+) \"(.*[^\\\\])\"]";
 		for(final String pgnGame : pgn.split("\n\n"))
 		{
 			final Game game = new Game();
-			GameStatus _status = null;
 			TimeControl _timeControl = null;
 			byte excluded = 0;
 			byte annotation = 0;
 			Move move = null;
 			for(final String line : pgnGame.split("\n"))
 			{
-				if(_status == null && line.matches(pgnTagRegex))
+				if(line.equals(""))
 				{
-					final Matcher matcher = Pattern.compile("\\[([A-Za-z0-9]+) \"(.*[^\\\\])\"\\]").matcher(line);
+					continue;
+				}
+				if(_timeControl == null && line.matches(pgnTagPattern))
+				{
+					final Matcher matcher = Pattern.compile(pgnTagPattern).matcher(line);
 					if(matcher.find() && matcher.groupCount() == 2)
 					{
-						Game.processTag(game, matcher.group(1), matcher.group(2));
+						if(!matcher.group(1).equalsIgnoreCase("Result"))
+						{
+							Game.processTag(game, matcher.group(1), matcher.group(2));
+						}
 					}
 				}
 				else
 				{
-					if(_status == null)
+					if(_timeControl == null)
 					{
-						_status = game.status;
 						_timeControl = game.timeControl;
 						game.status = GameStatus.BUILDING;
 						game.timeControl = TimeControl.UNLIMITED;
@@ -101,6 +111,10 @@ public class Game
 						if(section.equals(""))
 						{
 							continue;
+						}
+						if(section.startsWith(";"))
+						{
+							break;
 						}
 						if(section.startsWith("("))
 						{
@@ -139,8 +153,27 @@ public class Game
 									}
 								}
 							}
-							else if(!section.equals("") && !section.endsWith(".") && !section.equals("1-0") && !section.equals("0-1") && !section.equals("1/2-1/2") && !section.equals("*"))
+							else if(!section.equals("") && !section.endsWith("."))
 							{
+								if(section.equals("*"))
+								{
+									break;
+								}
+								if(section.equals("1-0") || section.equalsIgnoreCase("1-o"))
+								{
+									game.status = GameStatus.WHITE_WINS;
+									break;
+								}
+								if(section.equals("0-1") || section.equalsIgnoreCase("o-1"))
+								{
+									game.status = GameStatus.BLACK_WINS;
+									break;
+								}
+								if(section.equals("1/2-1/2") || section.equals("½-½"))
+								{
+									game.status = GameStatus.DRAW;
+									break;
+								}
 								String moveNum = String.valueOf((int) Math.ceil((double) game.plyCount / 2)) + ".";
 								if(section.startsWith(moveNum))
 								{
@@ -163,24 +196,20 @@ public class Game
 					}
 				}
 			}
-			if(_status != null)
+			if(_timeControl != null)
 			{
-				if(_status != GameStatus.BUILDING)
+				game.timeControl = _timeControl;
+				if(game.status != GameStatus.BUILDING && game.status != GameStatus.ONGOING && game.endReason == EndReason.UNTERMINATED)
 				{
-					game.status = _status;
-					if(game.endReason == EndReason.UNTERMINATED)
+					if(game.status == GameStatus.DRAW)
 					{
-						if(game.status == GameStatus.DRAW)
-						{
-							game.endReason = EndReason.DRAW_AGREEMENT;
-						}
-						else if(game.status == GameStatus.WHITE_WINS || game.status == GameStatus.BLACK_WINS)
-						{
-							game.endReason = EndReason.RESIGNATION;
-						}
+						game.endReason = EndReason.DRAW_AGREEMENT;
+					}
+					else
+					{
+						game.endReason = EndReason.RESIGNATION;
 					}
 				}
-				game.timeControl = _timeControl;
 			}
 			games.add(game);
 		}
@@ -189,20 +218,53 @@ public class Game
 
 	public static ArrayList<Game> fromCGN(final InputStream is) throws IOException, ChessException
 	{
-		return Game.fromCGN(is, false);
+		return Game.fromCGN(is, false, CGNVersion.latest);
 	}
 
 	public static ArrayList<Game> fromCGN(final InputStream is, boolean dontCalculate) throws IOException, ChessException
+	{
+		return Game.fromCGN(is, dontCalculate, CGNVersion.latest);
+	}
+
+	public static ArrayList<Game> fromCGN(final InputStream is, boolean dontCalculate, CGNVersion version) throws IOException, ChessException
 	{
 		final ArrayList<Game> games = new ArrayList<>();
 		while(is.available() > 1)
 		{
 			final Game game = new Game();
-			byte tags = (byte) is.read();
-			while(tags > 0)
+			if(version == CGNVersion.V1)
 			{
-				Game.processTag(game, Game.readNullTerminatedString(is), Game.readNullTerminatedString(is));
-				tags--;
+				byte tags = (byte) is.read();
+				while(tags > 0)
+				{
+					Game.processTag(game, Game.readNullTerminatedString(is), Game.readNullTerminatedString(is));
+					tags--;
+				}
+			}
+			else
+			{
+				do
+				{
+					int tagByte = is.read();
+					CGNTagMap tag = CGNTagMap.fromOrdinal(tagByte);
+					if(tag == null)
+					{
+						throw new ChessException("Invalid CGN tag: " + String.format("%02X", tagByte));
+					}
+					if(tag == CGNTagMap._ENDOFTAGS)
+					{
+						break;
+					}
+					if(tag == CGNTagMap._FROMSTRING)
+					{
+						Game.processTag(game, Game.readNullTerminatedString(is), Game.readNullTerminatedString(is));
+					}
+					else
+					{
+						Game.processTag(game, tag.name(), Game.readNullTerminatedString(is));
+					}
+				}
+				while(true);
 			}
 			Move lastMove = null;
 			final GameStatus _status = game.status;
@@ -216,15 +278,45 @@ public class Game
 				final boolean controlMove = ((b1 & 0b10000000) >> 7) == 1;
 				if(controlMove)
 				{
-					if(b1 == (byte) 0b10000000)
+					if(version == CGNVersion.V1)
 					{
-						break;
-					}
-					else if(b1 == (byte) 0b10000001)
-					{
-						if(lastMove != null)
+						if(b1 == (byte) 0b10000000)
 						{
-							lastMove.annotation = Game.readNullTerminatedString(is);
+							break;
+						}
+						else if(b1 == (byte) 0b10000001)
+						{
+							if(lastMove != null)
+							{
+								lastMove.annotation = Game.readNullTerminatedString(is);
+							}
+						}
+					}
+					else
+					{
+						if(b1 == (byte) 0b10000000)
+						{
+							if(lastMove != null)
+							{
+								lastMove.annotation = Game.readNullTerminatedString(is);
+							}
+						}
+						else
+						{
+							// 0b10000001: There are no more moves/bytes but the game is still ongoing.
+							if(b1 == (byte) 0b10000010)
+							{
+								game.status = GameStatus.WHITE_WINS;
+							}
+							else if(b1 == (byte) 0b10000011)
+							{
+								game.status = GameStatus.BLACK_WINS;
+							}
+							else if(b1 == (byte) 0b10000100)
+							{
+								game.status = GameStatus.DRAW;
+							}
+							break;
 						}
 					}
 				}
@@ -236,12 +328,8 @@ public class Game
 					final byte toSquareFile = (byte) (((b1 << 2) & 0b100) | ((b2 >>> 6) & 0b011));
 					final byte toSquareRank = (byte) (b2 >>> 3 & 0b111);
 					final byte promotionValue = (byte) (b2 & 0b111);
-					final PieceType promoteTo;
-					if(promotionValue == 0b000)
-					{
-						promoteTo = null;
-					}
-					else
+					PieceType promoteTo = null;
+					if(promotionValue > 0)
 					{
 						promoteTo = PieceType.fromOrdinal(promotionValue);
 					}
@@ -251,10 +339,17 @@ public class Game
 					lastMove.commit(false, dontCalculate);
 				}
 			}
-			if(_status != GameStatus.BUILDING)
+			if(version == CGNVersion.V1 && _status != GameStatus.BUILDING)
 			{
 				game.status = _status;
-				if(game.endReason == EndReason.UNTERMINATED && game.status != GameStatus.DRAW)
+			}
+			if(game.endReason == EndReason.UNTERMINATED && game.status != GameStatus.BUILDING && game.status != GameStatus.ONGOING)
+			{
+				if(game.status == GameStatus.DRAW)
+				{
+					game.endReason = EndReason.DRAW_AGREEMENT;
+				}
+				else
 				{
 					game.endReason = EndReason.RESIGNATION;
 				}
@@ -310,15 +405,15 @@ public class Game
 		}
 		else if(key.equalsIgnoreCase("Result"))
 		{
-			if(val.equals("1-0"))
+			if(val.equals("1-0") || val.equalsIgnoreCase("1-o"))
 			{
 				game.status = GameStatus.WHITE_WINS;
 			}
-			else if(val.equals("0-1"))
+			else if(val.equals("0-1") || val.equalsIgnoreCase("o-1"))
 			{
 				game.status = GameStatus.BLACK_WINS;
 			}
-			else if(val.equals("1/2-1/2"))
+			else if(val.equals("1/2-1/2") || val.equals("½-½"))
 			{
 				game.status = GameStatus.DRAW;
 			}
@@ -380,7 +475,7 @@ public class Game
 				game.timeControl = (game.increment == 0 ? TimeControl.SUDDEN_DEATH : TimeControl.INCREMENT);
 			}
 		}
-		else if(!key.equalsIgnoreCase("SetUp") && !key.equalsIgnoreCase("PlyCount") && !((key.equalsIgnoreCase("Event") || key.equalsIgnoreCase("Site")) && (val.equals("-") || val.equals("http://hell.sh/CompactChess"))))
+		else if(!key.equalsIgnoreCase("SetUp") && !key.equalsIgnoreCase("PlyCount") && !val.equals("-") && !val.equals("?") && !val.equals("????.??.??") && !val.equals("http://hell.sh/CompactChess"))
 		{
 			game.tags.put(key, val);
 		}
@@ -793,6 +888,25 @@ public class Game
 		if(!defaultStartPosition)
 		{
 			this.recalculateEndReason(this.isCheck());
+		}
+		Date date = new Date();
+		if(!this.tags.containsKey("UTCDate") && !this.tags.containsKey("Date"))
+		{
+			SimpleDateFormat formatter = new SimpleDateFormat("yyyy.MM.dd");
+			this.tags.put("Date", formatter.format(date));
+			formatter.setTimeZone(TimeZone.getTimeZone("GMT"));
+			this.tags.put("UTCDate", formatter.format(date));
+		}
+		if(!this.tags.containsKey("UTCTime") && !this.tags.containsKey("Time"))
+		{
+			SimpleDateFormat formatter = new SimpleDateFormat("kk:mm:ss");
+			tags.put("Time", formatter.format(date));
+			formatter.setTimeZone(TimeZone.getTimeZone("GMT"));
+			tags.put("UTCTime", formatter.format(date));
+		}
+		if(!this.tags.containsKey("Round"))
+		{
+			this.tags.put("Round", "?");
 		}
 		return this;
 	}
@@ -1645,23 +1759,69 @@ public class Game
 		}
 	}
 
-	public HashMap<String, String> getExportableTags(boolean compact)
+	public TreeMap<String, String> getExportableTags(CGNVersion cgnVersion)
 	{
-		final HashMap<String, String> tags = new HashMap<>();
-		if(!compact || this.variant != Variant.STANDARD)
-		{
-			tags.put("Variant", this.variant.name);
-		}
-		final String startFEN = this.start.getFEN(compact);
-		if(this.variant == Variant.CHESS960 || !startFEN.equals(this.variant.startFEN))
-		{
-			if(!compact)
-			{
-				tags.put("SetUp", "1");
-			}
-			tags.put("FEN", startFEN);
-		}
+		final TreeMap<String, String> tags = new TreeMap<>(new PGNTagComparator());
 		tags.putAll(this.tags);
+		if(tags.containsKey("Event"))
+		{
+			if(!tags.containsKey("Site"))
+			{
+				tags.put("Site", "http://hell.sh/CompactChess");
+			}
+		}
+		else
+		{
+			tags.put("Event", "http://hell.sh/CompactChess");
+			if(cgnVersion == null && !tags.containsKey("Site"))
+			{
+				tags.put("Site", "-");
+			}
+		}
+		if(cgnVersion == null)
+		{
+			if(!tags.containsKey("Date"))
+			{
+				if(tags.containsKey("UTCDate"))
+				{
+					tags.put("Date", tags.get("UTCDate"));
+				}
+				else
+				{
+					tags.put("Date", "????.??.??");
+				}
+			}
+		}
+		else
+		{
+			if(tags.containsKey("Round"))
+			{
+				String rnd = tags.get("Round");
+				if(rnd.equals("?") || rnd.equals("-"))
+				{
+					tags.remove("Round");
+				}
+			}
+		}
+		if(cgnVersion == null || cgnVersion == CGNVersion.V1)
+		{
+			if(this.status == GameStatus.WHITE_WINS)
+			{
+				tags.put("Result", "1-0");
+			}
+			else if(this.status == GameStatus.BLACK_WINS)
+			{
+				tags.put("Result", "0-1");
+			}
+			else if(this.status == GameStatus.DRAW)
+			{
+				tags.put("Result", "1/2-1/2");
+			}
+			else
+			{
+				tags.put("Result", "*");
+			}
+		}
 		if(this.timeControl == TimeControl.INCREMENT)
 		{
 			tags.put("TimeControl", (this.start.whitemsecs / 1000) + "+" + (this.increment / 1000));
@@ -1670,51 +1830,29 @@ public class Game
 		{
 			tags.put("TimeControl", String.valueOf(this.start.whitemsecs / 1000) + "+0");
 		}
-		else
+		else if(cgnVersion == null)
 		{
 			tags.put("TimeControl", "-");
 		}
-		if(!compact)
-		{
-			tags.put("PlyCount", String.valueOf(this.plyCount - this.start.plyCount));
-		}
-		if(this.status == GameStatus.WHITE_WINS)
-		{
-			if(!compact || this.endReason == EndReason.RESIGNATION)
-			{
-				tags.put("Result", "1-0");
-			}
-		}
-		else if(this.status == GameStatus.BLACK_WINS)
-		{
-			if(!compact || this.endReason == EndReason.RESIGNATION)
-			{
-				tags.put("Result", "0-1");
-			}
-		}
-		else if(this.status == GameStatus.DRAW)
-		{
-			tags.put("Result", "1/2-1/2");
-		}
-		else if(!compact)
-		{
-			tags.put("Result", "*");
-		}
-		if(!compact || (this.endReason != EndReason.UNTERMINATED && !this.endReason.pgnName.equals("Normal")))
+		if(cgnVersion == null || (this.endReason != EndReason.UNTERMINATED && !this.endReason.pgnName.equals("Normal")))
 		{
 			tags.put("Termination", endReason.pgnName);
 		}
-		if(!tags.containsKey("Site"))
+		if(this.variant != Variant.STANDARD)
 		{
-			tags.put("Site", "http://hell.sh/CompactChess");
-			if(!compact && !tags.containsKey("Event"))
-			{
-				tags.put("Event", "-");
-			}
+			tags.put("Variant", this.variant.name);
 		}
-		else if(!tags.containsKey("Event"))
+		if(this.variant == Variant.CHESS960 || !this.start.getFEN(false).equals(this.variant.startFEN))
 		{
-			tags.put("Event", "http://hell.sh/CompactChess");
+			if(cgnVersion == null)
+			{
+				tags.put("SetUp", "1");
+			}
+			tags.put("FEN", this.start.getFEN(cgnVersion != null));
+		}
+		if(cgnVersion == null)
+		{
+			tags.put("PlyCount", String.valueOf(this.plyCount - this.start.plyCount));
 		}
 		return tags;
 	}
@@ -1741,7 +1879,7 @@ public class Game
 			throw new ChessException("The game has been modified in a way that PGN can not express");
 		}
 		StringBuilder pgn = new StringBuilder();
-		final HashMap<String, String> tags = this.getExportableTags(false);
+		final TreeMap<String, String> tags = this.getExportableTags(null);
 		if(!noTags)
 		{
 			for(Map.Entry<String, String> tag : tags.entrySet())
@@ -1792,8 +1930,13 @@ public class Game
 
 	public byte[] toCGN() throws IOException, ChessException
 	{
+		return this.toCGN(CGNVersion.latest);
+	}
+
+	public byte[] toCGN(CGNVersion version) throws IOException, ChessException
+	{
 		final ByteArrayOutputStream os = new ByteArrayOutputStream();
-		this.toCGN(os);
+		this.toCGN(os, version);
 		final byte[] bytes = os.toByteArray();
 		os.close();
 		return bytes;
@@ -1801,27 +1944,52 @@ public class Game
 
 	public void toCGN(OutputStream os) throws IOException, ChessException
 	{
+		this.toCGN(os, CGNVersion.latest);
+	}
+
+	public void toCGN(OutputStream os, CGNVersion version) throws IOException, ChessException
+	{
 		if(!exportable)
 		{
 			throw new ChessException("The game has been modified in a way that PGN can not express");
 		}
-		final HashMap<String, String> tags = this.getExportableTags(true);
-		os.write(tags.size());
+		final TreeMap<String, String> tags = this.getExportableTags(version);
+		if(version == CGNVersion.V1)
+		{
+			os.write(tags.size());
+		}
 		for(Map.Entry<String, String> tag : tags.entrySet())
 		{
 			String key = tag.getKey();
-			if(key.equalsIgnoreCase("PlyCount") || key.equalsIgnoreCase("SetUp") || (key.equalsIgnoreCase("Result") && this.endReason != EndReason.RESIGNATION && this.status != GameStatus.DRAW))
+			if(key.equalsIgnoreCase("PlyCount") || key.equalsIgnoreCase("SetUp") || (version != CGNVersion.V1 && key.equalsIgnoreCase("Result")))
 			{
 				continue;
 			}
 			String value = tag.getValue();
-			if((key.equalsIgnoreCase("Termination") && value.equalsIgnoreCase("Normal")) || (key.equalsIgnoreCase("Variant") && value.equalsIgnoreCase("Standard")))
+			if((key.equalsIgnoreCase("Termination") && (value.equalsIgnoreCase("Normal") || value.equalsIgnoreCase("Unterminated"))) || (key.equalsIgnoreCase("Variant") && value.equalsIgnoreCase("Standard")))
 			{
 				continue;
 			}
-			os.write(key.getBytes(Charset.forName("UTF-8")));
-			os.write(0x00);
+			CGNTagMap mappedTag;
+			if(version == CGNVersion.V1)
+			{
+				mappedTag = CGNTagMap._FROMSTRING;
+			}
+			else
+			{
+				mappedTag = CGNTagMap.fromName(key);
+				os.write(mappedTag.ordinal());
+			}
+			if(mappedTag == CGNTagMap._FROMSTRING)
+			{
+				os.write(key.getBytes(Charset.forName("UTF-8")));
+				os.write(0x00);
+			}
 			os.write(value.getBytes(Charset.forName("UTF-8")));
+			os.write(0x00);
+		}
+		if(version == CGNVersion.V2)
+		{
 			os.write(0x00);
 		}
 		synchronized(this.moves)
@@ -1837,13 +2005,40 @@ public class Game
 				os.write((byte) ((m.toSquare.file & 0b011) << 6 | m.toSquare.rank << 3 | promotionValue));
 				if(!m.annotation.equals(""))
 				{
-					os.write(0b10000001);
+					if(version == CGNVersion.V1)
+					{
+						os.write(0b10000001);
+					}
+					else
+					{
+						os.write(0b10000000);
+					}
 					os.write(m.annotation.getBytes(Charset.forName("UTF-8")));
 					os.write(0x00);
 				}
 			}
 		}
-		os.write(0b10000000);
+		if(version == CGNVersion.V1)
+		{
+			os.write(0b10000000);
+		}
+		else
+		{
+			switch(status)
+			{
+				case WHITE_WINS:
+					os.write(0b10000010);
+					break;
+				case BLACK_WINS:
+					os.write(0b10000011);
+					break;
+				case DRAW:
+					os.write(0b10000100);
+					break;
+				default:
+					os.write(0b10000001);
+			}
+		}
 	}
 
 	public boolean canDrawBeClaimed()
@@ -2427,7 +2622,7 @@ public class Game
 	{
 		if(o2 instanceof Game)
 		{
-			return this.getFEN(true).equals(((Game) o2).getFEN(true)) && ((this.start == null && ((Game) o2).start == null) || (this.start != null && ((Game) o2).start != null && this.start.getFEN(true).equals(((Game) o2).start.getFEN(true)))) && this.plyCount == ((Game) o2).plyCount && this.moves.equals(((Game) o2).moves) && this.repetitionPostitions.equals(((Game) o2).repetitionPostitions) && this.variant.equals(((Game) o2).variant) && this.toMove.equals(((Game) o2).toMove) && this.timeControl.equals(((Game) o2).timeControl) && this.status == ((Game) o2).status && this.claimableDraw == ((Game) o2).claimableDraw && this.endReason == ((Game) o2).endReason && this.plyStart == ((Game) o2).plyStart && this.tags.equals(((Game) o2).tags) && this.increment == ((Game) o2).increment && this.whitemsecs == ((Game) o2).whitemsecs && this.blackmsecs == ((Game) o2).blackmsecs && this.exportable == ((Game) o2).exportable;
+			return this.getFEN(true).equals(((Game) o2).getFEN(true)) && ((this.start == null && ((Game) o2).start == null) || (this.start != null && ((Game) o2).start != null && this.start.getFEN(true).equals(((Game) o2).start.getFEN(true)))) && this.plyCount == ((Game) o2).plyCount && this.moves.equals(((Game) o2).moves) && this.repetitionPostitions.equals(((Game) o2).repetitionPostitions) && this.variant.equals(((Game) o2).variant) && this.toMove.equals(((Game) o2).toMove) && this.timeControl.equals(((Game) o2).timeControl) && this.status == ((Game) o2).status && this.claimableDraw == ((Game) o2).claimableDraw && this.endReason == ((Game) o2).endReason && this.plyStart == ((Game) o2).plyStart && this.tags.entrySet().equals(((Game) o2).tags.entrySet()) && this.increment == ((Game) o2).increment && this.whitemsecs == ((Game) o2).whitemsecs && this.blackmsecs == ((Game) o2).blackmsecs && this.exportable == ((Game) o2).exportable;
 		}
 		return false;
 	}

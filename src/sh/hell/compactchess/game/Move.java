@@ -6,7 +6,7 @@ import sh.hell.compactchess.exceptions.InvalidMoveException;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 
-
+@SuppressWarnings({"WeakerAccess", "UnusedReturnValue", "unused"})
 public class Move
 {
 	public final Square fromSquare;
@@ -290,6 +290,10 @@ public class Move
 				else
 				{
 					game.enPassantSquare = null;
+				}
+				synchronized(game.repetitionPostitions)
+				{
+					game.repetitionPostitions.clear();
 				}
 			}
 			else

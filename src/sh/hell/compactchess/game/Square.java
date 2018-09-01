@@ -2,6 +2,7 @@ package sh.hell.compactchess.game;
 
 import sh.hell.compactchess.exceptions.ChessException;
 
+@SuppressWarnings({"WeakerAccess", "UnusedReturnValue", "unused"})
 public class Square
 {
 	public final byte file;

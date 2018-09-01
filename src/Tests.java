@@ -3,6 +3,7 @@ import sh.hell.compactchess.engine.Engine;
 import sh.hell.compactchess.engine.EngineBuilder;
 import sh.hell.compactchess.exceptions.ChessException;
 import sh.hell.compactchess.game.AlgebraicNotationVariation;
+import sh.hell.compactchess.game.CGNVersion;
 import sh.hell.compactchess.game.CastlingType;
 import sh.hell.compactchess.game.Color;
 import sh.hell.compactchess.game.EndReason;
@@ -390,13 +391,23 @@ public class Tests
 		visualize(game);
 		game.uciMove("h2h1q").commit();
 		visualize(game);
-		final byte[] cgn = game.toCGN();
+		byte[] cgn = game.toCGN();
 		for(byte b : cgn)
 		{
-			System.out.println(String.format("%8s", Integer.toBinaryString(b & 0xFF)).replace(' ', '0') + " " + new String(new byte[]{b}, Charset.forName("UTF-8")));
+			System.out.println(String.format("%8s", Integer.toBinaryString(b & 0xFF)).replace(' ', '0') + " " + new String(new byte[]{b}, Charset.forName("UTF-8")).replace("\n", "NL"));
 		}
 		System.out.println();
-		final Game game_ = Game.fromCGN(new ByteArrayInputStream(cgn)).get(0);
+		Game game_ = Game.fromCGN(new ByteArrayInputStream(cgn)).get(0);
+		visualize(game_);
+		assertEquals(game, game_);
+		assertEquals("Annotation!", game_.moves.get(0).annotation);
+		cgn = game.toCGN(CGNVersion.V1);
+		for(byte b : cgn)
+		{
+			System.out.println(String.format("%8s", Integer.toBinaryString(b & 0xFF)).replace(' ', '0') + " " + new String(new byte[]{b}, Charset.forName("UTF-8")).replace("\n", "NL"));
+		}
+		System.out.println();
+		game_ = Game.fromCGN(new ByteArrayInputStream(cgn), false, CGNVersion.V1).get(0);
 		visualize(game_);
 		assertEquals(game, game_);
 		assertEquals("Annotation!", game_.moves.get(0).annotation);
@@ -723,7 +734,7 @@ public class Tests
 	}
 
 	@Test(timeout = 1000L)
-	public void timeControl() throws ChessException
+	public void timeControl()
 	{
 		final Game game = new Game();
 		game.setUnlimitedTime();
