@@ -1,6 +1,5 @@
 package sh.hell.compactchess;
 
-import sh.hell.compactchess.engine.BuiltInEngine;
 import sh.hell.compactchess.engine.Engine;
 import sh.hell.compactchess.exceptions.ChessException;
 import sh.hell.compactchess.game.AlgebraicNotationVariation;
@@ -33,7 +32,6 @@ public class Main
 		System.out.println();
 		System.out.println("- [C]onvert Notation");
 		System.out.println("- [E]ngine Operations");
-		System.out.println("- Engine Operations with [B]uilt-in Engine");
 		System.out.println("- E[x]it");
 		System.out.println();
 		do
@@ -55,11 +53,6 @@ public class Main
 				case 'E':
 				case 'e':
 					engineOperations();
-					return;
-
-				case 'B':
-				case 'b':
-					engineOperations(new BuiltInEngine(3));
 					return;
 
 				case 'X':
@@ -224,7 +217,7 @@ public class Main
 
 				case 'N':
 				case 'n':
-					System.out.println(game.toPGN(true, AlgebraicNotationVariation.FAN));
+					System.out.println(game.toPGN(AlgebraicNotationVariation.FAN));
 					System.out.println();
 					convertNotationTo(game);
 					return;

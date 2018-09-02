@@ -3,7 +3,6 @@ import sh.hell.compactchess.game.Color;
 import sh.hell.compactchess.game.Game;
 import sh.hell.compactchess.game.GameStatus;
 import sh.hell.compactchess.game.Move;
-import sh.hell.compactchess.game.Variant;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -35,7 +34,7 @@ public class ExampleEngineVSEngine
 			final NumberFormat formatter = new DecimalFormat("#0.00");
 			do
 			{
-				final Game game = new Game().setTimed(1000 * 60 * 5, 1000).setPlayerNames(whiteName, blackName).setTag("Event", "Engine VS Engine").start();
+				final Game game = new Game().setTimed(15 * 1000, 0).setPlayerNames(whiteName, blackName).setTag("Event", "Engine VS Engine").start();
 				FileWriter fw = new FileWriter("board.svg", false);
 				fw.write(game.toSVG());
 				fw.close();
@@ -64,14 +63,10 @@ public class ExampleEngineVSEngine
 						move.commit();
 						fw.write(game.getWhiteTime() + "  " + game.getBlackTime() + "  +" + (game.increment / 1000) + "s\n");
 						fw.write("\n" + mover.name() + "'s evaluation: " + engine.getEvaluation() + "\n");
-						if(game.variant == Variant.STANDARD || game.variant == Variant.CHESS960)
-						{
-							fw.write("CompactChess eval.: " + formatter.format((double) game.getScore(mover) / 100) + "\n");
-						}
 					}
 					System.out.println(game.toString(true));
 					System.out.println(game.getFEN() + "\n");
-					System.out.println(game.getWhiteTime() + "  " + game.getBlackTime() + "  +" + (game.increment / 1000) + "s\n");
+					System.out.println(game.getWhiteTime() + "  " + game.getBlackTime() + "\n");
 					if(game.status != GameStatus.ONGOING)
 					{
 						System.out.println(game.status.name() + " by " + game.endReason.name());

@@ -29,7 +29,7 @@ public class Engine extends EngineBuilder
 	public String bestMove = null;
 	public String ponder = null;
 	public short score = 0;
-	Game evaluatingGame = null;
+	public Game evaluatingGame = null;
 	private Process process;
 	private boolean doDebug = false;
 	private int mateIn = 0;
@@ -38,7 +38,7 @@ public class Engine extends EngineBuilder
 	private OutputStreamWriter output;
 	private Scanner input;
 
-	Engine()
+	public Engine()
 	{
 		super();
 		this.killer = null;
@@ -299,7 +299,12 @@ public class Engine extends EngineBuilder
 			{
 				return null;
 			}
-			return evaluatingGame.uciMove(this.bestMove);
+			Move move = evaluatingGame.uciMove(this.bestMove);
+			synchronized(move.annotationTags)
+			{
+				move.annotationTags.add("[%eval " + this.getEvaluation().replace(",", ".") + "]");
+			}
+			return move;
 		}
 	}
 
@@ -385,7 +390,7 @@ public class Engine extends EngineBuilder
 			{
 				return null;
 			}
-			return this.mateIn > 0 ? evaluatingGame.toMove : (evaluatingGame.toMove == Color.WHITE ? Color.BLACK : Color.WHITE);
+			return this.mateIn > 0 ? evaluatingGame.toMove : (evaluatingGame.toMove.opposite());
 		}
 	}
 
@@ -397,7 +402,7 @@ public class Engine extends EngineBuilder
 			{
 				return null;
 			}
-			return (this.getMater() == Color.WHITE ? Color.BLACK : Color.WHITE);
+			return this.getMater().opposite();
 		}
 	}
 

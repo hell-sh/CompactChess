@@ -3,5 +3,10 @@ package sh.hell.compactchess.game;
 public enum Color
 {
 	WHITE,
-	BLACK
+	BLACK;
+
+	public Color opposite()
+	{
+		return this == Color.WHITE ? Color.BLACK : Color.WHITE;
+	}
 }

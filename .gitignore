@@ -1,6 +1,6 @@
 .idea/
+junit/
 out/
-test_libs/
 board.svg
 *.iml
 *.txt

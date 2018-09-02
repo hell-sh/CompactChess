@@ -16,7 +16,9 @@ public class Move
 	public final CastlingType castlingType;
 	private final WeakReference<Game> game;
 	private final Game _game;
-	public String annotation = "";
+	public final ArrayList<String> annotations = new ArrayList<>();
+	public final ArrayList<String> annotationTags = new ArrayList<>();
+	private boolean annotate = true;
 
 	public Move(Game game, Square fromSquare, Square toSquare, PieceType promoteTo, boolean validate) throws ChessException
 	{
@@ -104,8 +106,62 @@ public class Move
 
 	public Move annotate(String annotation)
 	{
-		this.annotation = annotation;
+		synchronized(annotations)
+		{
+			this.annotations.add(annotation);
+		}
 		return this;
+	}
+
+	public boolean hasAnnotation()
+	{
+		return this.hasAnnotation(true);
+	}
+
+	public boolean hasAnnotation(boolean noTags)
+	{
+		synchronized(annotations)
+		{
+			synchronized(annotationTags)
+			{
+				return (annotations.size() != 0 || (!noTags && annotationTags.size() != 0));
+			}
+		}
+	}
+
+	public String getAnnotation()
+	{
+		return this.getAnnotation(true);
+	}
+
+	public String getAnnotation(boolean noTags)
+	{
+		ArrayList<String> annotations = new ArrayList<>();
+		if(!noTags)
+		{
+			synchronized(annotationTags)
+			{
+				annotations.addAll(annotationTags);
+			}
+		}
+		synchronized(this.annotations)
+		{
+			annotations.addAll(this.annotations);
+		}
+		if(annotations.size() == 0)
+		{
+			return "";
+		}
+		if(annotations.size() == 1)
+		{
+			return annotations.get(0);
+		}
+		StringBuilder str = new StringBuilder(annotations.get(0));
+		for(int i = 1; i < annotations.size(); i++)
+		{
+			str.append(" ").append(annotations.get(i));
+		}
+		return str.toString();
 	}
 
 	private void handle(Game game, boolean doCounting, boolean dontCalculate) throws ChessException
@@ -248,7 +304,7 @@ public class Move
 		}
 	}
 
-	Game commitTo(Game game, boolean dontCalculate) throws ChessException
+	public Game commitTo(Game game, boolean dontCalculate) throws ChessException
 	{
 		if(this.isEnPassant)
 		{
@@ -306,37 +362,47 @@ public class Move
 		{
 			game.moves.add(this);
 		}
-		if(game.timeControl != TimeControl.UNLIMITED)
+		if(game.plyStart > 0)
 		{
-			if(game.timeControl == TimeControl.INCREMENT && (game.plyCount > 2 || game.start.whitemsecs == 0 || game.start.blackmsecs == 0))
+			long timeTaken = (System.currentTimeMillis() - game.plyStart);
+			if(game.timeControl != TimeControl.UNLIMITED)
 			{
-				if(game.toMove == Color.WHITE)
+				if(game.timeControl == TimeControl.INCREMENT && (game.plyCount > 2 || game.start.whitemsecs == 0 || game.start.blackmsecs == 0))
 				{
-					game.whitemsecs += game.increment;
+					if(game.toMove == Color.WHITE)
+					{
+						game.whitemsecs += game.increment;
+					}
+					else
+					{
+						game.blackmsecs += game.increment;
+					}
 				}
-				else
+				if(game.plyCount > 2 || game.start.whitemsecs > 0 || game.start.blackmsecs > 0)
 				{
-					game.blackmsecs += game.increment;
+					if(game.toMove == Color.WHITE)
+					{
+						game.whitemsecs -= timeTaken;
+					}
+					else
+					{
+						game.blackmsecs -= timeTaken;
+					}
 				}
-			}
-			if(game.plyStart != 0)
-			{
-				if(game.toMove == Color.WHITE)
+				if(annotate)
 				{
-					game.whitemsecs -= (System.currentTimeMillis() - game.plyStart);
+					this.annotationTags.add("[%clk " + Game.formatTime((game.toMove == Color.WHITE ? game.whitemsecs : game.blackmsecs), true) + "]");
 				}
-				else
-				{
-					game.blackmsecs -= (System.currentTimeMillis() - game.plyStart);
-				}
-			}
-			if(game.plyCount > 1 || game.start.whitemsecs > 0 || game.start.blackmsecs > 0)
-			{
 				game.plyStart = System.currentTimeMillis();
+			}
+			if(annotate)
+			{
+				this.annotationTags.add("[%emt " + Game.formatTime(timeTaken, true) + "]");
+				annotate = false;
 			}
 		}
 		game.plyCount++;
-		game.toMove = (game.toMove == Color.WHITE ? Color.BLACK : Color.WHITE);
+		game.toMove = game.toMove.opposite();
 		if(dontCalculate)
 		{
 			game.recalculateStatus();
@@ -480,7 +546,7 @@ public class Move
 					{
 						return "You can't castle kingside";
 					}
-					opponentControlledSquares = this._game.getSquaresControlledBy(this._game.toMove == Color.WHITE ? Color.BLACK : Color.WHITE);
+					opponentControlledSquares = this._game.getSquaresControlledBy(this._game.toMove.opposite());
 					if(opponentControlledSquares.contains(fromSquare))
 					{
 						return "You can't castle while in check";
@@ -495,7 +561,7 @@ public class Move
 					{
 						return "You can't castle queenside";
 					}
-					opponentControlledSquares = this._game.getSquaresControlledBy(this._game.toMove == Color.WHITE ? Color.BLACK : Color.WHITE);
+					opponentControlledSquares = this._game.getSquaresControlledBy(this._game.toMove.opposite());
 					if(opponentControlledSquares.contains(fromSquare))
 					{
 						return "You can't castle while in check";
@@ -619,11 +685,6 @@ public class Move
 	public boolean isCheckmate(boolean isCheck) throws ChessException
 	{
 		return this.commitInCopy(true, true).isCheckmate(true);
-	}
-
-	public short getScore(Color perspective) throws ChessException
-	{
-		return this.commitInCopy(true, false).getScore(perspective);
 	}
 
 	public String toUCI()

@@ -104,6 +104,7 @@ public class Game
 						game.status = GameStatus.BUILDING;
 						game.timeControl = TimeControl.UNLIMITED;
 						game.start();
+						game.plyStart = 0;
 					}
 					for(String section : line.split(" "))
 					{
@@ -143,14 +144,7 @@ public class Game
 								}
 								if(move != null && !section.equals(""))
 								{
-									if(move.annotation.equals(""))
-									{
-										move.annotation = section;
-									}
-									else
-									{
-										move.annotation += " " + section;
-									}
+									move.annotate(section);
 								}
 							}
 							else if(!section.equals("") && !section.endsWith("."))
@@ -272,6 +266,7 @@ public class Game
 			game.status = GameStatus.BUILDING;
 			game.timeControl = TimeControl.UNLIMITED;
 			game.start();
+			game.plyStart = 0;
 			while(is.available() > 0)
 			{
 				final byte b1 = (byte) is.read();
@@ -288,7 +283,7 @@ public class Game
 						{
 							if(lastMove != null)
 							{
-								lastMove.annotation = Game.readNullTerminatedString(is);
+								lastMove.annotate(Game.readNullTerminatedString(is));
 							}
 						}
 					}
@@ -298,7 +293,7 @@ public class Game
 						{
 							if(lastMove != null)
 							{
-								lastMove.annotation = Game.readNullTerminatedString(is);
+								lastMove.annotate(Game.readNullTerminatedString(is));
 							}
 						}
 						else
@@ -853,69 +848,53 @@ public class Game
 		return this;
 	}
 
+	public static String formatTime(long msecs, boolean forAnnotation)
+	{
+		String time = "";
+		if(msecs < 0)
+		{
+			msecs = msecs * -1;
+			time = "-";
+		}
+		long seconds = (msecs / 1000) % 60;
+		time += String.format("%02d", seconds);
+		if(!forAnnotation)
+		{
+			time += "." + String.format("%04d", (msecs % 1000));
+		}
+		if(msecs >= 60000 || forAnnotation)
+		{
+			long minutes = (msecs / 60000) % 60;
+			time = String.format("%02d:", minutes) + time;
+			if(msecs >= 3600000 || forAnnotation)
+			{
+				long hours = (msecs / 3600000) % 24;
+				if(forAnnotation)
+				{
+					time = String.format("%01d:", hours) + time;
+				}
+				else
+				{
+					time = String.format("%02d:", hours) + time;
+				}
+			}
+		}
+		return time;
+	}
+
 	public Game opponentToMove()
 	{
 		if(this.status != GameStatus.BUILDING)
 		{
 			this.exportable = false;
 		}
-		this.toMove = (this.toMove == Color.WHITE ? Color.BLACK : Color.WHITE);
+		this.toMove = this.toMove.opposite();
 		return this;
 	}
 
 	public Game resetMoveTime()
 	{
-		if(this.status == GameStatus.ONGOING && timeControl != TimeControl.UNLIMITED && (this.plyCount > 2 || this.start.whitemsecs > 0 || this.start.blackmsecs > 0))
-		{
-			this.plyStart = System.currentTimeMillis();
-		}
-		return this;
-	}
-
-	public Game start() throws ChessException
-	{
-		if(timeControl != TimeControl.UNLIMITED && (this.whitemsecs == 0 || this.blackmsecs == 0) && this.increment == 0)
-		{
-			throw new ChessException("Refusing to start a 0+0 game.");
-		}
-		boolean defaultStartPosition = (this.squares == null);
-		if(defaultStartPosition)
-		{
-			this.loadFEN(variant.startFEN);
-		}
-		this.start = this.copy();
-		this.status = GameStatus.ONGOING;
-		synchronized(this.repetitionPostitions)
-		{
-			this.repetitionPostitions.put(this.getPositionalFEN(true), 1);
-		}
-		if(!defaultStartPosition)
-		{
-			this.recalculateEndReason(this.isCheck());
-		}
-		Date date = new Date();
-		if(!this.tags.containsKey("UTCDate") && !this.tags.containsKey("Date"))
-		{
-			SimpleDateFormat formatter = new SimpleDateFormat("yyyy.MM.dd");
-			this.tags.put("Date", formatter.format(date));
-			formatter.setTimeZone(TimeZone.getTimeZone("GMT"));
-			this.tags.put("UTCDate", formatter.format(date));
-		}
-		if(!this.tags.containsKey("UTCTime") && !this.tags.containsKey("Time"))
-		{
-			SimpleDateFormat formatter = new SimpleDateFormat("kk:mm:ss");
-			tags.put("Time", formatter.format(date));
-			formatter.setTimeZone(TimeZone.getTimeZone("GMT"));
-			tags.put("UTCTime", formatter.format(date));
-		}
-		if(!this.tags.containsKey("Round"))
-		{
-			this.tags.put("Round", "?");
-		}
-		if(timeControl != TimeControl.UNLIMITED && (this.whitemsecs > 0 || this.blackmsecs > 0))
-		{
-			this.plyStart = System.currentTimeMillis();
-		}
+		this.plyStart = System.currentTimeMillis();
 		return this;
 	}
 
@@ -929,7 +908,7 @@ public class Game
 		{
 			endReason = EndReason.STALEMATE;
 		}
-		else if(timeControl != TimeControl.UNLIMITED && (toMove == Color.WHITE ? blackmsecs : whitemsecs) < 0)
+		else if((toMove == Color.WHITE ? blackmsecs : whitemsecs) < 0)
 		{
 			endReason = EndReason.TIMEOUT;
 		}
@@ -1409,27 +1388,48 @@ public class Game
 		return controllers;
 	}
 
-	public boolean isCheck()
+	public Game start() throws ChessException
 	{
-		synchronized(this.pieces)
+		if(timeControl != TimeControl.UNLIMITED && (this.whitemsecs == 0 || this.blackmsecs == 0) && this.increment == 0)
 		{
-			final ArrayList<Square> squaresControlledByOpponent = this.getSquaresControlledBy(this.toMove == Color.WHITE ? Color.BLACK : Color.WHITE);
-			for(Piece p : pieces)
-			{
-				if(p.color == this.toMove && p.type == PieceType.KING)
-				{
-					Square kingSquare = p.getSquare();
-					for(Square s : squaresControlledByOpponent)
-					{
-						if(s.equals(kingSquare))
-						{
-							return true;
-						}
-					}
-				}
-			}
+			throw new ChessException("Refusing to start a 0+0 game.");
 		}
-		return false;
+		boolean defaultStartPosition = (this.squares == null);
+		if(defaultStartPosition)
+		{
+			this.loadFEN(variant.startFEN);
+		}
+		this.start = this.copy();
+		this.status = GameStatus.ONGOING;
+		synchronized(this.repetitionPostitions)
+		{
+			this.repetitionPostitions.put(this.getPositionalFEN(true), 1);
+		}
+		if(!defaultStartPosition)
+		{
+			this.recalculateEndReason(this.isCheck());
+		}
+		Date date = new Date();
+		if(!this.tags.containsKey("UTCDate") && !this.tags.containsKey("Date"))
+		{
+			SimpleDateFormat formatter = new SimpleDateFormat("yyyy.MM.dd");
+			this.tags.put("Date", formatter.format(date));
+			formatter.setTimeZone(TimeZone.getTimeZone("GMT"));
+			this.tags.put("UTCDate", formatter.format(date));
+		}
+		if(!this.tags.containsKey("UTCTime") && !this.tags.containsKey("Time"))
+		{
+			SimpleDateFormat formatter = new SimpleDateFormat("kk:mm:ss");
+			tags.put("Time", formatter.format(date));
+			formatter.setTimeZone(TimeZone.getTimeZone("GMT"));
+			tags.put("UTCTime", formatter.format(date));
+		}
+		if(!this.tags.containsKey("Round"))
+		{
+			this.tags.put("Round", "?");
+		}
+		this.plyStart = System.currentTimeMillis();
+		return this;
 	}
 
 	public boolean isStalemate() throws ChessException
@@ -1606,37 +1606,37 @@ public class Game
 		return this.setTag("Black", name).setTag("BlackElo", elo);
 	}
 
-	private String formatTime(long msecs)
+	public boolean isCheck()
 	{
-		String time = "";
-		if(msecs < 0)
+		synchronized(this.pieces)
 		{
-			msecs = msecs * -1;
-			time = "-";
-		}
-		long seconds = (msecs / 1000) % 60;
-		time += String.format("%02d.", seconds) + String.format("%04d", (msecs % 1000));
-		if(msecs >= 60000)
-		{
-			long minutes = (msecs / 60000) % 60;
-			time = String.format("%02d:", minutes) + time;
-			if(msecs >= 3600000)
+			final ArrayList<Square> squaresControlledByOpponent = this.getSquaresControlledBy(this.toMove.opposite());
+			for(Piece p : pieces)
 			{
-				long hours = (msecs / 3600000) % 24;
-				time = String.format("%02d:", hours) + time;
+				if(p.color == this.toMove && p.type == PieceType.KING)
+				{
+					Square kingSquare = p.getSquare();
+					for(Square s : squaresControlledByOpponent)
+					{
+						if(s.equals(kingSquare))
+						{
+							return true;
+						}
+					}
+				}
 			}
 		}
-		return time;
+		return false;
 	}
 
 	public String getWhiteTime()
 	{
-		return this.formatTime(this.whitemsecs);
+		return Game.formatTime(this.whitemsecs, false);
 	}
 
 	public String getBlackTime()
 	{
-		return this.formatTime(this.blackmsecs);
+		return Game.formatTime(this.blackmsecs, false);
 	}
 
 	public String getPositionalFEN()
@@ -1771,20 +1771,31 @@ public class Game
 	{
 		final TreeMap<String, String> tags = new TreeMap<>(new PGNTagComparator());
 		tags.putAll(this.tags);
-		if(tags.containsKey("Event"))
+		if(tags.containsKey("Annotator"))
 		{
-			if(!tags.containsKey("Site"))
+			if(tags.containsKey("Event"))
 			{
-				tags.put("Site", "http://hell.sh/CompactChess");
+				if(!tags.containsKey("Site"))
+				{
+					tags.put("Site", "http://hell.sh/CompactChess");
+				}
+			}
+			else
+			{
+				tags.put("Event", "http://hell.sh/CompactChess");
 			}
 		}
 		else
 		{
-			tags.put("Event", "http://hell.sh/CompactChess");
-			if(cgnVersion == null && !tags.containsKey("Site"))
-			{
-				tags.put("Site", "-");
-			}
+			tags.put("Annotator", "http://hell.sh/CompactChess");
+		}
+		if(!tags.containsKey("Event"))
+		{
+			tags.put("Event", "-");
+		}
+		if(!tags.containsKey("Site"))
+		{
+			tags.put("Site", "-");
 		}
 		if(cgnVersion == null)
 		{
@@ -1867,20 +1878,20 @@ public class Game
 
 	public String toPGN() throws ChessException
 	{
-		return this.toPGN(false, AlgebraicNotationVariation.SAN);
-	}
-
-	public String toPGN(boolean noTags) throws ChessException
-	{
-		return this.toPGN(noTags, AlgebraicNotationVariation.SAN);
+		return this.toPGN(false, false, false, AlgebraicNotationVariation.SAN);
 	}
 
 	public String toPGN(AlgebraicNotationVariation anvariation) throws ChessException
 	{
-		return this.toPGN(false, anvariation);
+		return this.toPGN(false, false, false, anvariation);
 	}
 
-	public String toPGN(boolean noTags, AlgebraicNotationVariation anvariation) throws ChessException
+	public String toPGN(boolean noTags, boolean noAnnotations, boolean noAnnotationTags) throws ChessException
+	{
+		return this.toPGN(noTags, noAnnotations, noAnnotationTags, AlgebraicNotationVariation.SAN);
+	}
+
+	public String toPGN(boolean noTags, boolean noAnnotations, boolean noAnnotationTags, AlgebraicNotationVariation anvariation) throws ChessException
 	{
 		if(!exportable)
 		{
@@ -1924,9 +1935,9 @@ public class Game
 						pgn.append(moveNum).append(". ");
 					}
 					pgn.append(move.toAlgebraicNotation(anvariation)).append(" ");
-					if(!move.annotation.equals(""))
+					if(!noAnnotations && move.hasAnnotation(noAnnotationTags))
 					{
-						pgn.append("{ ").append(move.annotation).append(" } ");
+						pgn.append("{ ").append(move.getAnnotation(noAnnotationTags)).append(" } ");
 					}
 					white = !white;
 				}
@@ -1938,13 +1949,23 @@ public class Game
 
 	public byte[] toCGN() throws IOException, ChessException
 	{
-		return this.toCGN(CGNVersion.latest);
+		return this.toCGN(false, false, false, CGNVersion.latest);
 	}
 
 	public byte[] toCGN(CGNVersion version) throws IOException, ChessException
 	{
+		return this.toCGN(false, false, false, version);
+	}
+
+	public byte[] toCGN(boolean noTags, boolean noAnnotations, boolean noAnnotationTags) throws IOException, ChessException
+	{
+		return this.toCGN(noTags, noAnnotations, noAnnotationTags, CGNVersion.latest);
+	}
+
+	public byte[] toCGN(boolean noTags, boolean noAnnotations, boolean noAnnotationTags, CGNVersion version) throws IOException, ChessException
+	{
 		final ByteArrayOutputStream os = new ByteArrayOutputStream();
-		this.toCGN(os, version);
+		this.toCGN(os, noTags, noAnnotations, noAnnotationTags, version);
 		final byte[] bytes = os.toByteArray();
 		os.close();
 		return bytes;
@@ -1952,53 +1973,66 @@ public class Game
 
 	public void toCGN(OutputStream os) throws IOException, ChessException
 	{
-		this.toCGN(os, CGNVersion.latest);
+		this.toCGN(os, false, false, false, CGNVersion.latest);
 	}
 
 	public void toCGN(OutputStream os, CGNVersion version) throws IOException, ChessException
 	{
+		this.toCGN(os, false, false, false, version);
+	}
+
+	public void toCGN(OutputStream os, boolean noTags, boolean noAnnotations, boolean noAnnotationTags) throws IOException, ChessException
+	{
+		this.toCGN(os, noTags, noAnnotations, noAnnotationTags, CGNVersion.latest);
+	}
+
+	public void toCGN(OutputStream os, boolean noTags, boolean noAnnotations, boolean noAnnotationTags, CGNVersion version) throws IOException, ChessException
+	{
 		if(!exportable)
 		{
-			throw new ChessException("The game has been modified in a way that PGN can not express");
+			throw new ChessException("The game has been modified in a way that CGN can not express");
 		}
-		final TreeMap<String, String> tags = this.getExportableTags(version);
-		if(version == CGNVersion.V1)
+		if(!noTags)
 		{
-			os.write(tags.size());
-		}
-		for(Map.Entry<String, String> tag : tags.entrySet())
-		{
-			String key = tag.getKey();
-			if(key.equalsIgnoreCase("PlyCount") || key.equalsIgnoreCase("SetUp") || (version != CGNVersion.V1 && key.equalsIgnoreCase("Result")))
-			{
-				continue;
-			}
-			String value = tag.getValue();
-			if((key.equalsIgnoreCase("Termination") && (value.equalsIgnoreCase("Normal") || value.equalsIgnoreCase("Unterminated"))) || (key.equalsIgnoreCase("Variant") && value.equalsIgnoreCase("Standard")))
-			{
-				continue;
-			}
-			CGNTagMap mappedTag;
+			final TreeMap<String, String> tags = this.getExportableTags(version);
 			if(version == CGNVersion.V1)
 			{
-				mappedTag = CGNTagMap._FROMSTRING;
+				os.write(tags.size());
 			}
-			else
+			for(Map.Entry<String, String> tag : tags.entrySet())
 			{
-				mappedTag = CGNTagMap.fromName(key);
-				os.write(mappedTag.ordinal());
-			}
-			if(mappedTag == CGNTagMap._FROMSTRING)
-			{
-				os.write(key.getBytes(Charset.forName("UTF-8")));
+				String key = tag.getKey();
+				if(key.equalsIgnoreCase("PlyCount") || key.equalsIgnoreCase("SetUp") || (version != CGNVersion.V1 && key.equalsIgnoreCase("Result")))
+				{
+					continue;
+				}
+				String value = tag.getValue();
+				if((key.equalsIgnoreCase("Termination") && (value.equalsIgnoreCase("Normal") || value.equalsIgnoreCase("Unterminated"))) || (key.equalsIgnoreCase("Variant") && value.equalsIgnoreCase("Standard")))
+				{
+					continue;
+				}
+				CGNTagMap mappedTag;
+				if(version == CGNVersion.V1)
+				{
+					mappedTag = CGNTagMap._FROMSTRING;
+				}
+				else
+				{
+					mappedTag = CGNTagMap.fromName(key);
+					os.write(mappedTag.ordinal());
+				}
+				if(mappedTag == CGNTagMap._FROMSTRING)
+				{
+					os.write(key.getBytes(Charset.forName("UTF-8")));
+					os.write(0x00);
+				}
+				os.write(value.getBytes(Charset.forName("UTF-8")));
 				os.write(0x00);
 			}
-			os.write(value.getBytes(Charset.forName("UTF-8")));
-			os.write(0x00);
-		}
-		if(version == CGNVersion.V2)
-		{
-			os.write(0x00);
+			if(version == CGNVersion.V2)
+			{
+				os.write(0x00);
+			}
 		}
 		synchronized(this.moves)
 		{
@@ -2011,7 +2045,7 @@ public class Game
 				}
 				os.write((byte) (m.fromSquare.file << 4 | m.fromSquare.rank << 1 | (m.toSquare.file & 0b100) >>> 2));
 				os.write((byte) ((m.toSquare.file & 0b011) << 6 | m.toSquare.rank << 3 | promotionValue));
-				if(!m.annotation.equals(""))
+				if(!noAnnotations && m.hasAnnotation(noAnnotationTags))
 				{
 					if(version == CGNVersion.V1)
 					{
@@ -2021,7 +2055,7 @@ public class Game
 					{
 						os.write(0b10000000);
 					}
-					os.write(m.annotation.getBytes(Charset.forName("UTF-8")));
+					os.write(m.getAnnotation(noAnnotationTags).getBytes(Charset.forName("UTF-8")));
 					os.write(0x00);
 				}
 			}
@@ -2189,49 +2223,9 @@ public class Game
 		return moves;
 	}
 
-	public short getScore(Color perspective)
-	{
-		if(this.status == GameStatus.WHITE_WINS)
-		{
-			return Game.MAX_SCORE;
-		}
-		else if(this.status == GameStatus.DRAW)
-		{
-			return 0;
-		}
-		else if(this.status == GameStatus.BLACK_WINS)
-		{
-			return (Game.MAX_SCORE * -1);
-		}
-		short whitescore = 0;
-		short blackscore = 0;
-		synchronized(this.pieces)
-		{
-			for(Piece p : this.pieces)
-			{
-				if(p.color == Color.WHITE)
-				{
-					whitescore += this.getScoreOf(p);
-				}
-				else
-				{
-					blackscore += this.getScoreOf(p);
-				}
-			}
-		}
-		if(perspective == Color.WHITE)
-		{
-			return (short) (whitescore - blackscore);
-		}
-		else
-		{
-			return (short) (blackscore - whitescore);
-		}
-	}
-
 	public ArrayList<Piece> getAttackers(Piece piece)
 	{
-		return this.getControllers(piece.getSquare(), piece.color == Color.WHITE ? Color.BLACK : Color.WHITE);
+		return this.getControllers(piece.getSquare(), piece.color.opposite());
 	}
 
 	public ArrayList<Piece> getDefenders(Piece piece)
@@ -2254,142 +2248,6 @@ public class Game
 			}
 		}
 		return attackers > 0;
-	}
-
-	public short getScoreOf(Piece piece)
-	{
-		short score = piece.type.scoreValue;
-		final Square square = piece.getSquare();
-		final byte rank;
-		if(piece.color == Color.WHITE)
-		{
-			rank = square.rank;
-		}
-		else
-		{
-			rank = (byte) (7 - square.rank);
-		}
-		final byte file = square.file;
-		if(piece.type == PieceType.PAWN)
-		{
-			if(rank > 1)
-			{
-				if(rank > 2)
-				{
-					score += ((((double) rank - 2) / 6) * 100);
-				}
-				if(file != 3 && file != 4)
-				{
-					if(file != 2 && file != 5)
-					{
-						score -= 17;
-					}
-					else
-					{
-						score -= 9;
-					}
-				}
-			}
-		}
-		final ArrayList<Square> controlledSquares = this.getSquaresControlledBy(piece);
-		score += controlledSquares.size();
-		for(Square s : controlledSquares)
-		{
-			Piece p = s.getPiece();
-			if(p != null)
-			{
-				if(rank == 0 && piece.type == PieceType.KING && (s.rank == 1 || s.rank == 6))
-				{
-					score += 9;
-				}
-				if(p.color == piece.color)
-				{
-					score++;
-				}
-				else
-				{
-					score += p.type.scoreValue / 100;
-				}
-			}
-		}
-		return score;
-	}
-
-	public Move getBestMove(int depth) throws ChessException
-	{
-		Move bestMove = null;
-		int bestMoveScore = 0;
-		if(depth > 2)
-		{
-			for(Move move : getPossibleMoves())
-			{
-				Game game_ = move.commitTo(this.copy(), false);
-				if(game_.status != GameStatus.ONGOING)
-				{
-					return move;
-				}
-				Move reply = game_.getBestMove(depth - 1);
-				if(reply != null)
-				{
-					Move replyReply = reply.commitInCopy(false, false).getBestMove(depth - 2);
-					if(replyReply != null)
-					{
-						int score = replyReply.getScore(this.toMove);
-						if(bestMove == null || bestMoveScore < score || (bestMoveScore == score && Math.random() > 0.73))
-						{
-							bestMove = move;
-							bestMoveScore = score;
-						}
-						continue;
-					}
-				}
-				int score = game_.getScore(this.toMove);
-				if(bestMove == null || bestMoveScore < score)
-				{
-					bestMove = move;
-					bestMoveScore = score;
-				}
-			}
-		}
-		else if(depth > 1)
-		{
-			for(Move move : getPossibleMoves())
-			{
-				Game game_ = move.commitTo(this.copy(), false);
-				if(game_.status != GameStatus.ONGOING)
-				{
-					return move;
-				}
-				Move reply = game_.getBestMove(depth - 1);
-				if(reply == null)
-				{
-					return move;
-				}
-				int score = reply.getScore(this.toMove == Color.WHITE ? Color.BLACK : Color.WHITE);
-				if(bestMove == null || bestMoveScore > score || (bestMoveScore == score && Math.random() > 0.73))
-				{
-					bestMove = move;
-					bestMoveScore = score;
-				}
-			}
-		}
-		else
-		{
-			for(Move move : getPossibleMoves())
-			{
-				int score = move.getScore(this.toMove);
-				if(score == Game.MAX_SCORE)
-				{
-					return move;
-				}
-				if(bestMove == null || bestMoveScore < score || (bestMoveScore == score && Math.random() > 0.73))
-				{
-					bestMove = move;
-					bestMoveScore = score;
-				}
-			}
-		}
-		return bestMove;
 	}
 
 	public short getMaterialScore(Color perspective)
@@ -2630,7 +2488,17 @@ public class Game
 	{
 		if(o2 instanceof Game)
 		{
-			return this.getFEN(true).equals(((Game) o2).getFEN(true)) && ((this.start == null && ((Game) o2).start == null) || (this.start != null && ((Game) o2).start != null && this.start.getFEN(true).equals(((Game) o2).start.getFEN(true)))) && this.plyCount == ((Game) o2).plyCount && this.moves.equals(((Game) o2).moves) && this.repetitionPostitions.equals(((Game) o2).repetitionPostitions) && this.variant.equals(((Game) o2).variant) && this.toMove.equals(((Game) o2).toMove) && this.timeControl.equals(((Game) o2).timeControl) && this.status == ((Game) o2).status && this.claimableDraw == ((Game) o2).claimableDraw && this.endReason == ((Game) o2).endReason && this.plyStart == ((Game) o2).plyStart && this.tags.entrySet().equals(((Game) o2).tags.entrySet()) && this.increment == ((Game) o2).increment && this.whitemsecs == ((Game) o2).whitemsecs && this.blackmsecs == ((Game) o2).blackmsecs && this.exportable == ((Game) o2).exportable;
+			if(this.getFEN(true).equals(((Game) o2).getFEN(true)) && ((this.start == null && ((Game) o2).start == null) || (this.start != null && ((Game) o2).start != null && this.start.getFEN(true).equals(((Game) o2).start.getFEN(true)))) && this.plyCount == ((Game) o2).plyCount && this.repetitionPostitions.equals(((Game) o2).repetitionPostitions) && this.variant.equals(((Game) o2).variant) && this.toMove.equals(((Game) o2).toMove) && this.timeControl.equals(((Game) o2).timeControl) && this.status == ((Game) o2).status && this.claimableDraw == ((Game) o2).claimableDraw && this.endReason == ((Game) o2).endReason && this.tags.entrySet().equals(((Game) o2).tags.entrySet()) && this.increment == ((Game) o2).increment && this.whitemsecs == ((Game) o2).whitemsecs && this.blackmsecs == ((Game) o2).blackmsecs && this.exportable == ((Game) o2).exportable && this.moves.size() == ((Game) o2).moves.size())
+			{
+				for(int i = 0; i < this.moves.size(); i++)
+				{
+					if(!this.moves.get(i).equals(((Game) o2).moves.get(i)))
+					{
+						return false;
+					}
+				}
+				return true;
+			}
 		}
 		return false;
 	}

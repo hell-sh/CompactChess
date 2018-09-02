@@ -358,13 +358,13 @@ public class Tests
 		visualize(game);
 		game.uciMove("h2h1q").commit();
 		visualize(game);
-		final String pgn = game.toPGN();
+		final String pgn = game.toPGN(false, false, true);
 		System.out.println(pgn);
 		Game game_ = Game.fromPGN(pgn).get(0);
 		visualize(game_);
 		assertTrue(pgn.contains("1. O-O-O+ { Annotation! } Ke7 2. Kb1 h1=Q *"));
 		assertEquals(game, game_);
-		assertEquals("Annotation!", game_.moves.get(0).annotation);
+		assertEquals("Annotation!", game_.moves.get(0).getAnnotation());
 		assertEquals(game, Game.fromPGN(game.toPGN(AlgebraicNotationVariation.FIDE_SAN)).get(0));
 		assertEquals(game, Game.fromPGN(game.toPGN(AlgebraicNotationVariation.FAN)).get(0));
 		assertEquals(game, Game.fromPGN(game.toPGN(AlgebraicNotationVariation.MAN)).get(0));
@@ -391,7 +391,7 @@ public class Tests
 		visualize(game);
 		game.uciMove("h2h1q").commit();
 		visualize(game);
-		byte[] cgn = game.toCGN();
+		byte[] cgn = game.toCGN(false, false, true);
 		for(byte b : cgn)
 		{
 			System.out.println(String.format("%8s", Integer.toBinaryString(b & 0xFF)).replace(' ', '0') + " " + new String(new byte[]{b}, Charset.forName("UTF-8")).replace("\n", "NL"));
@@ -400,8 +400,8 @@ public class Tests
 		Game game_ = Game.fromCGN(new ByteArrayInputStream(cgn)).get(0);
 		visualize(game_);
 		assertEquals(game, game_);
-		assertEquals("Annotation!", game_.moves.get(0).annotation);
-		cgn = game.toCGN(CGNVersion.V1);
+		assertEquals("Annotation!", game_.moves.get(0).getAnnotation());
+		cgn = game.toCGN(false, false, true, CGNVersion.V1);
 		for(byte b : cgn)
 		{
 			System.out.println(String.format("%8s", Integer.toBinaryString(b & 0xFF)).replace(' ', '0') + " " + new String(new byte[]{b}, Charset.forName("UTF-8")).replace("\n", "NL"));
@@ -410,7 +410,7 @@ public class Tests
 		game_ = Game.fromCGN(new ByteArrayInputStream(cgn), false, CGNVersion.V1).get(0);
 		visualize(game_);
 		assertEquals(game, game_);
-		assertEquals("Annotation!", game_.moves.get(0).annotation);
+		assertEquals("Annotation!", game_.moves.get(0).getAnnotation());
 	}
 
 	// Engine
@@ -441,32 +441,6 @@ public class Tests
 		assertEquals("e6d5", engine.bestMove);
 		visualize(engine.getBestMove().commit());
 		engine.dispose();
-	}
-
-	@Test(timeout = 10000L)
-	public void builtInEngine() throws ChessException
-	{
-		System.out.println("Built-in Engine\n");
-		Game game = new Game().loadFEN("3qk3/8/4K3/6Q1/8/8/8/8 w - -").start();
-		visualize(game);
-		Move move = game.getBestMove(1);
-		visualize(move.commit());
-		assertEquals("g5g8", move.toUCI());
-		game = new Game().loadFEN("k3q3/8/3N4/8/8/8/8/7K w - -").start();
-		visualize(game);
-		move = game.getBestMove(2);
-		visualize(move.commit());
-		assertEquals("d6e8", move.toUCI());
-		game = new Game().loadFEN("k3q3/8/5r2/3N4/8/8/8/7K w - -").start();
-		visualize(game);
-		move = game.getBestMove(3);
-		visualize(move.commit());
-		assertEquals("d5c7", move.toUCI());
-		game = new Game().loadFEN("4r2k/p1p1Q3/1b4P1/7p/8/2P1p3/PPP1Kp2/1RB2R2 w - - 1 34").start();
-		visualize(game);
-		move = game.getBestMove(3);
-		visualize(move.commit());
-		assertEquals("e7h7", move.toUCI());
 	}
 
 	@Test(timeout = 2000L)
