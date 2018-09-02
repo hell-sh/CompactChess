@@ -734,7 +734,7 @@ public class Tests
 	}
 
 	@Test(timeout = 1000L)
-	public void timeControl()
+	public void timeControl() throws ChessException, InterruptedException
 	{
 		final Game game = new Game();
 		game.setUnlimitedTime();
@@ -750,5 +750,17 @@ public class Tests
 		assertEquals(2000, game.increment);
 		game.whitemsecs = -100;
 		assertEquals("-00.0100", game.getWhiteTime());
+		game.setTimed(0, 100);
+		game.start();
+		assertEquals(EndReason.UNTERMINATED, game.endReason);
+		Thread.sleep(50);
+		game.move("e4").commit();
+		assertEquals(EndReason.UNTERMINATED, game.endReason);
+		game.move("e5").commit();
+		assertEquals(EndReason.UNTERMINATED, game.endReason);
+		Thread.sleep(200);
+		game.move("Nf3").commit();
+		assertEquals(EndReason.TIMEOUT, game.endReason);
+		assertEquals(GameStatus.BLACK_WINS, game.status);
 	}
 }

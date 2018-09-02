@@ -35,9 +35,12 @@ public class ExampleEngineVSEngine
 			final NumberFormat formatter = new DecimalFormat("#0.00");
 			do
 			{
-				final Game game = new Game().setTimed(15000, 0).setPlayerNames(whiteName, blackName).setTag("Event", "Engine VS Engine").start();
+				final Game game = new Game().setTimed(1000 * 60 * 5, 1000).setPlayerNames(whiteName, blackName).setTag("Event", "Engine VS Engine").start();
 				FileWriter fw = new FileWriter("board.svg", false);
 				fw.write(game.toSVG());
+				fw.close();
+				fw = new FileWriter("info.txt", false);
+				fw.write(whiteName + " VS " + blackName + "\n" + game.getWhiteTime() + "  " + game.getBlackTime() + "  +" + (game.increment / 1000) + "s\n");
 				fw.close();
 				do
 				{
@@ -46,7 +49,7 @@ public class ExampleEngineVSEngine
 					final Move move;
 					move = engine.evaluate(game.resetMoveTime()).awaitConclusion().getBestMove();
 					fw = new FileWriter("info.txt", false);
-					fw.write(whiteName + " VS " + blackName + "\n" + game.getWhiteTime() + "  " + game.getBlackTime() + "  +" + (game.increment / 1000) + "s\n");
+					fw.write(whiteName + " VS " + blackName + "\n");
 					if(engine.score == 0 && game.canDrawBeClaimed())
 					{
 						game.claimDraw();
@@ -58,8 +61,9 @@ public class ExampleEngineVSEngine
 					else
 					{
 						System.out.println(mover.name() + " played " + move.toUCI() + "\n");
-						fw.write("\n" + mover.name() + "'s evaluation: " + engine.getEvaluation() + "\n");
 						move.commit();
+						fw.write(game.getWhiteTime() + "  " + game.getBlackTime() + "  +" + (game.increment / 1000) + "s\n");
+						fw.write("\n" + mover.name() + "'s evaluation: " + engine.getEvaluation() + "\n");
 						if(game.variant == Variant.STANDARD || game.variant == Variant.CHESS960)
 						{
 							fw.write("CompactChess eval.: " + formatter.format((double) game.getScore(mover) / 100) + "\n");
@@ -67,6 +71,7 @@ public class ExampleEngineVSEngine
 					}
 					System.out.println(game.toString(true));
 					System.out.println(game.getFEN() + "\n");
+					System.out.println(game.getWhiteTime() + "  " + game.getBlackTime() + "  +" + (game.increment / 1000) + "s\n");
 					if(game.status != GameStatus.ONGOING)
 					{
 						System.out.println(game.status.name() + " by " + game.endReason.name());

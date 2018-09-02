@@ -81,10 +81,6 @@ public class Game
 			Move move = null;
 			for(final String line : pgnGame.split("\n"))
 			{
-				if(line.equals(""))
-				{
-					continue;
-				}
 				if(_timeControl == null && line.matches(pgnTagPattern))
 				{
 					final Matcher matcher = Pattern.compile(pgnTagPattern).matcher(line);
@@ -98,6 +94,10 @@ public class Game
 				}
 				else
 				{
+					if(line.equals(""))
+					{
+						continue;
+					}
 					if(_timeControl == null)
 					{
 						_timeControl = game.timeControl;
@@ -865,7 +865,7 @@ public class Game
 
 	public Game resetMoveTime()
 	{
-		if(this.status == GameStatus.ONGOING && this.plyCount > 1)
+		if(this.status == GameStatus.ONGOING && timeControl != TimeControl.UNLIMITED && (this.plyCount > 2 || this.start.whitemsecs > 0 || this.start.blackmsecs > 0))
 		{
 			this.plyStart = System.currentTimeMillis();
 		}
@@ -874,6 +874,10 @@ public class Game
 
 	public Game start() throws ChessException
 	{
+		if(timeControl != TimeControl.UNLIMITED && (this.whitemsecs == 0 || this.blackmsecs == 0) && this.increment == 0)
+		{
+			throw new ChessException("Refusing to start a 0+0 game.");
+		}
 		boolean defaultStartPosition = (this.squares == null);
 		if(defaultStartPosition)
 		{
@@ -908,6 +912,10 @@ public class Game
 		{
 			this.tags.put("Round", "?");
 		}
+		if(timeControl != TimeControl.UNLIMITED && (this.whitemsecs > 0 || this.blackmsecs > 0))
+		{
+			this.plyStart = System.currentTimeMillis();
+		}
 		return this;
 	}
 
@@ -921,7 +929,7 @@ public class Game
 		{
 			endReason = EndReason.STALEMATE;
 		}
-		else if(timeControl != TimeControl.UNLIMITED && plyCount > 2 && (toMove == Color.WHITE ? whitemsecs : blackmsecs) <= 0)
+		else if(timeControl != TimeControl.UNLIMITED && (toMove == Color.WHITE ? blackmsecs : whitemsecs) < 0)
 		{
 			endReason = EndReason.TIMEOUT;
 		}
@@ -1035,7 +1043,7 @@ public class Game
 			}
 			else
 			{
-				if(variant == Variant.ANTICHESS)
+				if(endReason == EndReason.TIMEOUT || variant == Variant.ANTICHESS)
 				{
 					status = (toMove == Color.WHITE ? GameStatus.WHITE_WINS : GameStatus.BLACK_WINS);
 				}

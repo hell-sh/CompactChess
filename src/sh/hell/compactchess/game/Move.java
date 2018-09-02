@@ -308,7 +308,7 @@ public class Move
 		}
 		if(game.timeControl != TimeControl.UNLIMITED)
 		{
-			if(game.timeControl == TimeControl.INCREMENT)
+			if(game.timeControl == TimeControl.INCREMENT && (game.plyCount > 2 || game.start.whitemsecs == 0 || game.start.blackmsecs == 0))
 			{
 				if(game.toMove == Color.WHITE)
 				{
@@ -319,7 +319,7 @@ public class Move
 					game.blackmsecs += game.increment;
 				}
 			}
-			if(game.plyStart > 0)
+			if(game.plyStart != 0)
 			{
 				if(game.toMove == Color.WHITE)
 				{
@@ -330,14 +330,18 @@ public class Move
 					game.blackmsecs -= (System.currentTimeMillis() - game.plyStart);
 				}
 			}
-			if(game.plyCount > 1)
+			if(game.plyCount > 1 || game.start.whitemsecs > 0 || game.start.blackmsecs > 0)
 			{
 				game.plyStart = System.currentTimeMillis();
 			}
 		}
 		game.plyCount++;
 		game.toMove = (game.toMove == Color.WHITE ? Color.BLACK : Color.WHITE);
-		if(!dontCalculate)
+		if(dontCalculate)
+		{
+			game.recalculateStatus();
+		}
+		else
 		{
 			game.determineCastlingAbilities();
 			boolean isCheck = game.isCheck();
@@ -376,10 +380,6 @@ public class Move
 					game.recalculateEndReason(isCheck);
 				}
 			}
-		}
-		else
-		{
-			game.recalculateStatus();
 		}
 		return game;
 	}
