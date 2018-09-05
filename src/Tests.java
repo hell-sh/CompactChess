@@ -9,6 +9,7 @@ import sh.hell.compactchess.game.Color;
 import sh.hell.compactchess.game.EndReason;
 import sh.hell.compactchess.game.Game;
 import sh.hell.compactchess.game.GameStatus;
+import sh.hell.compactchess.game.Language;
 import sh.hell.compactchess.game.Move;
 import sh.hell.compactchess.game.Piece;
 import sh.hell.compactchess.game.PieceType;
@@ -32,7 +33,7 @@ public class Tests
 {
 	private static void visualize(Game game)
 	{
-		System.out.println(game.toString(true, false, false, true));
+		System.out.println(game.toString(true, false, null, true));
 	}
 
 	private static void evaluatePossibleMoves(int expectedSquares, Game game, ArrayList<Square> squares)
@@ -358,7 +359,7 @@ public class Tests
 		visualize(game);
 		game.uciMove("h2h1q").commit();
 		visualize(game);
-		final String pgn = game.toPGN(false, false, true);
+		String pgn = game.toPGN(false, false, true);
 		System.out.println(pgn);
 		Game game_ = Game.fromPGN(pgn).get(0);
 		visualize(game_);
@@ -370,6 +371,12 @@ public class Tests
 		assertEquals(game, Game.fromPGN(game.toPGN(AlgebraicNotationVariation.MAN)).get(0));
 		assertEquals(game, Game.fromPGN(game.toPGN(AlgebraicNotationVariation.LAN)).get(0));
 		assertEquals(game, Game.fromPGN(game.toPGN(AlgebraicNotationVariation.RAN)).get(0));
+		pgn = game.toPGN(false, false, true, Language.GERMAN);
+		System.out.println(pgn);
+		game_ = Game.fromPGN(pgn, Language.GERMAN).get(0);
+		visualize(game_);
+		assertEquals(game, game_);
+		assertTrue(pgn.contains("1. O-O-O+ { Annotation! } Ke7 2. Kb1 h1=D *"));
 		game = new Game().loadFEN("8/2K5/4q3/8/3N1N2/6b1/8/7k w - -").start();
 		game.move("Nxe6");
 		game = Game.fromPGN("1.e4").get(0);

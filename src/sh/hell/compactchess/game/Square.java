@@ -107,7 +107,7 @@ public class Square
 		return this.getFileChar().toLowerCase() + (this.rank + 1);
 	}
 
-	public String getCharacter()
+	public String getCharacter(Language language)
 	{
 		if(this.piece == null)
 		{
@@ -115,7 +115,7 @@ public class Square
 		}
 		else
 		{
-			return this.getPiece().getCharacter();
+			return this.getPiece().getCharacter(language);
 		}
 	}
 

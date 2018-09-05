@@ -22,11 +22,6 @@ public class Piece
 		this.setSquare(square);
 	}
 
-	public static Piece fromNotationChar(final String notationChar)
-	{
-		return new Piece(PieceType.fromDisplayChar(notationChar), (notationChar.toUpperCase().equals(notationChar) ? Color.WHITE : Color.BLACK));
-	}
-
 	public boolean hasSquare()
 	{
 		return this.square != null;
@@ -46,9 +41,9 @@ public class Piece
 		this.square = new WeakReference<>(square);
 	}
 
-	public String getCharacter()
+	public String getCharacter(Language language)
 	{
-		return (color == Color.WHITE ? type.displayChar.toUpperCase() : type.displayChar.toLowerCase());
+		return (color == Color.WHITE ? type.getDisplayChar(language).toUpperCase() : type.getDisplayChar(language).toLowerCase());
 	}
 
 	public String getSymbol(final boolean invertColor)

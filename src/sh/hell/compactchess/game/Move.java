@@ -692,17 +692,22 @@ public class Move
 		StringBuilder uci = new StringBuilder(fromSquare.getAlgebraicNotation()).append(toSquare.getAlgebraicNotation());
 		if(this.promoteTo != null)
 		{
-			uci.append(this.promoteTo.notationChar.toLowerCase());
+			uci.append(this.promoteTo.getNotationChar(Language.ENGLISH).toLowerCase());
 		}
 		return uci.toString();
 	}
 
 	public String toAlgebraicNotation() throws ChessException
 	{
-		return this.toAlgebraicNotation(AlgebraicNotationVariation.SAN);
+		return this.toAlgebraicNotation(AlgebraicNotationVariation.SAN, Language.ENGLISH);
 	}
 
-	public String toAlgebraicNotation(final AlgebraicNotationVariation variation) throws ChessException
+	public String toAlgebraicNotation(AlgebraicNotationVariation variation) throws ChessException
+	{
+		return this.toAlgebraicNotation(variation, Language.ENGLISH);
+	}
+
+	public String toAlgebraicNotation(AlgebraicNotationVariation variation, Language language) throws ChessException
 	{
 		StringBuilder an = new StringBuilder();
 		switch(this.castlingType)
@@ -738,7 +743,7 @@ public class Move
 					}
 					else
 					{
-						an.append(piece.type.notationChar);
+						an.append(piece.type.getNotationChar(language));
 					}
 				}
 				if(variation == AlgebraicNotationVariation.LAN || variation == AlgebraicNotationVariation.RAN)
@@ -806,7 +811,7 @@ public class Move
 							final Piece piece_ = _game.square(toSquare).getPiece();
 							if(piece_ != null)
 							{
-								an.append(piece_.type.displayChar);
+								an.append(piece_.type.getDisplayChar(language));
 							}
 						}
 					}
@@ -825,7 +830,7 @@ public class Move
 					}
 					else
 					{
-						an.append(this.promoteTo.notationChar);
+						an.append(this.promoteTo.getDisplayChar(language));
 					}
 				}
 				break;

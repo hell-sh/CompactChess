@@ -62,12 +62,22 @@ public class Game
 		this.variant = variant;
 	}
 
-	public static ArrayList<Game> fromPGN(final String pgn) throws ChessException
+	public static ArrayList<Game> fromPGN(String pgn) throws ChessException
 	{
-		return Game.fromPGN(pgn, false);
+		return Game.fromPGN(pgn, Language.ENGLISH, false);
 	}
 
-	public static ArrayList<Game> fromPGN(String pgn, final boolean dontCalculate) throws ChessException
+	public static ArrayList<Game> fromPGN(String pgn, Language language) throws ChessException
+	{
+		return Game.fromPGN(pgn, language, false);
+	}
+
+	public static ArrayList<Game> fromPGN(String pgn, boolean dontCalculate) throws ChessException
+	{
+		return Game.fromPGN(pgn, Language.ENGLISH, dontCalculate);
+	}
+
+	public static ArrayList<Game> fromPGN(String pgn, Language language, boolean dontCalculate) throws ChessException
 	{
 		pgn = pgn.replace("\r", "").replace("]\n\n", "]\n");
 		final ArrayList<Game> games = new ArrayList<>();
@@ -182,7 +192,7 @@ public class Game
 								}
 								if(!section.equals(""))
 								{
-									move = game.move(section);
+									move = game.move(section, language);
 									move.commit(false, dontCalculate);
 								}
 							}
@@ -210,17 +220,17 @@ public class Game
 		return games;
 	}
 
-	public static ArrayList<Game> fromCGN(final InputStream is) throws IOException, ChessException
+	public static ArrayList<Game> fromCGN(InputStream is) throws IOException, ChessException
 	{
 		return Game.fromCGN(is, false, CGNVersion.latest);
 	}
 
-	public static ArrayList<Game> fromCGN(final InputStream is, boolean dontCalculate) throws IOException, ChessException
+	public static ArrayList<Game> fromCGN(InputStream is, boolean dontCalculate) throws IOException, ChessException
 	{
 		return Game.fromCGN(is, dontCalculate, CGNVersion.latest);
 	}
 
-	public static ArrayList<Game> fromCGN(final InputStream is, boolean dontCalculate, CGNVersion version) throws IOException, ChessException
+	public static ArrayList<Game> fromCGN(InputStream is, boolean dontCalculate, CGNVersion version) throws IOException, ChessException
 	{
 		final ArrayList<Game> games = new ArrayList<>();
 		while(is.available() > 1)
@@ -355,7 +365,7 @@ public class Game
 		return games;
 	}
 
-	private static String readNullTerminatedString(final InputStream is) throws IOException
+	private static String readNullTerminatedString(InputStream is) throws IOException
 	{
 		final ArrayList<Byte> byteArrList = new ArrayList<>();
 		if(is.available() == 0)
@@ -380,7 +390,7 @@ public class Game
 		return new String(byteArr, "UTF-8");
 	}
 
-	private static void processTag(final Game game, final String key, final String val) throws ChessException
+	private static void processTag(Game game, String key, String val) throws ChessException
 	{
 		if(key.equalsIgnoreCase("FEN"))
 		{
@@ -470,7 +480,7 @@ public class Game
 				game.timeControl = (game.increment == 0 ? TimeControl.SUDDEN_DEATH : TimeControl.INCREMENT);
 			}
 		}
-		else if(!key.equalsIgnoreCase("SetUp") && !key.equalsIgnoreCase("PlyCount") && !val.equals("-") && !val.equals("?") && !val.equals("????.??.??") && !val.equals("http://hell.sh/CompactChess"))
+		else if(!key.equalsIgnoreCase("SetUp") && !key.equalsIgnoreCase("PlyCount") && !val.equals("-") && !val.equals("?") && !val.equals("????.??.??") && !val.equals("http://compactchess.cc") && !val.equals("http://hell.sh/CompactChess"))
 		{
 			game.tags.put(key, val);
 		}
@@ -580,7 +590,7 @@ public class Game
 		}
 		if(uci.length() == 5)
 		{
-			return new Move(this, square(uci.substring(0, 2)).copy(), square(uci.substring(2, 4)).copy(), PieceType.fromDisplayChar(uci.substring(4, 5)), true);
+			return new Move(this, square(uci.substring(0, 2)).copy(), square(uci.substring(2, 4)).copy(), Language.ENGLISH.pieceFromChar(uci.substring(4, 5)), true);
 		}
 		else
 		{
@@ -589,6 +599,11 @@ public class Game
 	}
 
 	public Move move(String move) throws ChessException
+	{
+		return move(move, Language.ENGLISH);
+	}
+
+	public Move move(String move, Language language) throws ChessException
 	{
 		if(move == null || move.equals("(none)"))
 		{
@@ -617,7 +632,7 @@ public class Game
 			String promoteChar = move.substring(move.length() - 1).toUpperCase();
 			for(PieceType pt : PieceType.values())
 			{
-				if(pt.notationChar.equals(promoteChar) || pt.whiteSymbol.equals(promoteChar) || pt.blackSymbol.equals(promoteChar))
+				if(pt.getDisplayChar(language).equalsIgnoreCase(promoteChar) || pt.whiteSymbol.equals(promoteChar) || pt.blackSymbol.equals(promoteChar))
 				{
 					promoteTo = pt;
 					break;
@@ -632,7 +647,7 @@ public class Game
 		{
 			for(PieceType pt : PieceType.values())
 			{
-				if(pt.notationChar.equals(piece.substring(0, 1)) || pt.whiteSymbol.equals(piece.substring(0, 1)) || pt.blackSymbol.equals(piece.substring(0, 1)))
+				if(pt.getNotationChar(language).equalsIgnoreCase(piece.substring(0, 1)) || pt.whiteSymbol.equals(piece.substring(0, 1)) || pt.blackSymbol.equals(piece.substring(0, 1)))
 				{
 					pieceType = pt;
 					piece = piece.substring(1);
@@ -752,9 +767,8 @@ public class Game
 				Square square = new Square(file, rank);
 				if(!s.equals(" "))
 				{
-					Piece piece = Piece.fromNotationChar(s);
+					Piece piece = new Piece(Language.ENGLISH.pieceFromChar(s), (s.toUpperCase().equals(s) ? Color.WHITE : Color.BLACK), square);
 					this.pieces.add(piece);
-					piece.setSquare(square);
 					square.setPiece(piece);
 				}
 				this.squares[Square.index(file, rank)] = square;
@@ -1664,7 +1678,7 @@ public class Game
 						sb.append(emptySquares);
 						emptySquares = 0;
 					}
-					sb.append(square.getPiece().getCharacter());
+					sb.append(square.getPiece().getCharacter(Language.ENGLISH));
 				}
 			}
 			if(emptySquares > 0)
@@ -1777,17 +1791,17 @@ public class Game
 			{
 				if(!tags.containsKey("Site"))
 				{
-					tags.put("Site", "http://hell.sh/CompactChess");
+					tags.put("Site", "http://compactchess.cc");
 				}
 			}
 			else
 			{
-				tags.put("Event", "http://hell.sh/CompactChess");
+				tags.put("Event", "http://compactchess.cc");
 			}
 		}
 		else
 		{
-			tags.put("Annotator", "http://hell.sh/CompactChess");
+			tags.put("Annotator", "http://compactchess.cc");
 		}
 		if(!tags.containsKey("Event"))
 		{
@@ -1878,20 +1892,35 @@ public class Game
 
 	public String toPGN() throws ChessException
 	{
-		return this.toPGN(false, false, false, AlgebraicNotationVariation.SAN);
+		return this.toPGN(false, false, false, AlgebraicNotationVariation.SAN, Language.ENGLISH);
 	}
 
 	public String toPGN(AlgebraicNotationVariation anvariation) throws ChessException
 	{
-		return this.toPGN(false, false, false, anvariation);
+		return this.toPGN(false, false, false, anvariation, Language.ENGLISH);
+	}
+
+	public String toPGN(Language language) throws ChessException
+	{
+		return this.toPGN(false, false, false, AlgebraicNotationVariation.SAN, language);
 	}
 
 	public String toPGN(boolean noTags, boolean noAnnotations, boolean noAnnotationTags) throws ChessException
 	{
-		return this.toPGN(noTags, noAnnotations, noAnnotationTags, AlgebraicNotationVariation.SAN);
+		return this.toPGN(noTags, noAnnotations, noAnnotationTags, AlgebraicNotationVariation.SAN, Language.ENGLISH);
 	}
 
 	public String toPGN(boolean noTags, boolean noAnnotations, boolean noAnnotationTags, AlgebraicNotationVariation anvariation) throws ChessException
+	{
+		return this.toPGN(noTags, noAnnotations, noAnnotationTags, anvariation, Language.ENGLISH);
+	}
+
+	public String toPGN(boolean noTags, boolean noAnnotations, boolean noAnnotationTags, Language language) throws ChessException
+	{
+		return this.toPGN(noTags, noAnnotations, noAnnotationTags, AlgebraicNotationVariation.SAN, language);
+	}
+
+	public String toPGN(boolean noTags, boolean noAnnotations, boolean noAnnotationTags, AlgebraicNotationVariation anvariation, Language language) throws ChessException
 	{
 		if(!exportable)
 		{
@@ -1934,7 +1963,7 @@ public class Game
 						moveNum++;
 						pgn.append(moveNum).append(". ");
 					}
-					pgn.append(move.toAlgebraicNotation(anvariation)).append(" ");
+					pgn.append(move.toAlgebraicNotation(anvariation, language)).append(" ");
 					if(!noAnnotations && move.hasAnnotation(noAnnotationTags))
 					{
 						pgn.append("{ ").append(move.getAnnotation(noAnnotationTags)).append(" } ");
@@ -2296,25 +2325,25 @@ public class Game
 
 	public String toString()
 	{
-		return toString(true, false, false, false);
+		return toString(true, false, null, false);
 	}
 
 	public String toString(boolean whitesPerspective)
 	{
-		return toString(whitesPerspective, false, false, false);
+		return toString(whitesPerspective, false, null, false);
 	}
 
 	public String toString(boolean whitesPerspective, boolean noCoordinates)
 	{
-		return toString(whitesPerspective, noCoordinates, false, false);
+		return toString(whitesPerspective, noCoordinates, null, false);
 	}
 
-	public String toString(boolean whitesPerspective, boolean noCoordinates, boolean noUnicode)
+	public String toString(boolean whitesPerspective, boolean noCoordinates, Language useLetters)
 	{
-		return toString(whitesPerspective, noCoordinates, noUnicode, false);
+		return toString(whitesPerspective, noCoordinates, useLetters, false);
 	}
 
-	public String toString(boolean whitesPerspective, boolean noCoordinates, boolean noUnicode, boolean invertColor)
+	public String toString(boolean whitesPerspective, boolean noCoordinates, Language useLetters, boolean invertColor)
 	{
 		final StringBuilder sb = new StringBuilder();
 		byte rank = (byte) (whitesPerspective ? 7 : 0);
@@ -2327,13 +2356,13 @@ public class Game
 			byte file = (byte) (whitesPerspective ? 0 : 7);
 			while(whitesPerspective ? file < 8 : file >= 0)
 			{
-				if(noUnicode)
+				if(useLetters == null)
 				{
-					sb.append(square(file, rank).getCharacter());
+					sb.append(square(file, rank).getSymbol(invertColor));
 				}
 				else
 				{
-					sb.append(square(file, rank).getSymbol(invertColor));
+					sb.append(square(file, rank).getCharacter(useLetters));
 				}
 				if(whitesPerspective)
 				{
@@ -2394,7 +2423,7 @@ public class Game
 
 	public String toSVG(boolean indicateLastMove, boolean indicateCheck)
 	{
-		StringBuilder svg = new StringBuilder("<svg version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" viewBox=\"0 0 360 360\"><rect width=\"360\" height=\"360\" fill=\"#b58863\"/><g id=\"a\"><g id=\"b\"><g id=\"c\"><g id=\"d\"><rect width=\"45\" height=\"45\" fill=\"#f0d9b5\" id=\"e\"/><use x=\"90\" xlink:href=\"#e\"/></g><use x=\"180\" xlink:href=\"#d\"/></g><use x=\"45\" y=\"45\" xlink:href=\"#c\"/></g><use y=\"90\" xlink:href=\"#b\"/></g><use y=\"180\" xlink:href=\"#a\"/>");
+		StringBuilder svg = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\"><svg version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" viewBox=\"0 0 360 360\"><rect width=\"360\" height=\"360\" fill=\"#b58863\"/><g id=\"a\"><g id=\"b\"><g id=\"c\"><g id=\"d\"><rect width=\"45\" height=\"45\" fill=\"#f0d9b5\" id=\"e\"/><use x=\"90\" xlink:href=\"#e\"/></g><use x=\"180\" xlink:href=\"#d\"/></g><use x=\"45\" y=\"45\" xlink:href=\"#c\"/></g><use y=\"90\" xlink:href=\"#b\"/></g><use y=\"180\" xlink:href=\"#a\"/>");
 		if(indicateLastMove)
 		{
 			synchronized(moves)
