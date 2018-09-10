@@ -1,6 +1,5 @@
 import org.junit.Test;
 import sh.hell.compactchess.engine.Engine;
-import sh.hell.compactchess.engine.EngineBuilder;
 import sh.hell.compactchess.exceptions.ChessException;
 import sh.hell.compactchess.game.AlgebraicNotationVariation;
 import sh.hell.compactchess.game.CGNVersion;
@@ -21,6 +20,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertFalse;
@@ -420,16 +420,16 @@ public class Tests
 		assertEquals("Annotation!", game_.moves.get(0).getAnnotation());
 	}
 
-	// Engine
-
-	@Test(timeout = 2000L)
-	public void engine() throws ChessException, IOException
+	@Test(timeout = 10000L)
+	public void engine() throws ChessException, IOException, InterruptedException
 	{
 		System.out.println("Engine\n");
 		final Game game = new Game().loadFEN("1k6/8/K2BB3/8/8/8/8/8 b").start();
 		visualize(game);
-		Engine engine = new Engine("stockfish_9.exe", 1);
-		engine.evaluate(game, 1000).awaitConclusion();
+		final HashMap<String, String> uciOptions = new HashMap<>();
+		uciOptions.put("Ponder", "true");
+		final Engine engine = new Engine("stockfish_9.exe", null, uciOptions, true);
+		engine.evaluateDepth(game, 3).awaitConclusion();
 		assertNotNull(engine.getPonder());
 		assertEquals("e6d5", engine.getPonder().toUCI());
 		assertTrue(engine.foundMate());
@@ -439,7 +439,7 @@ public class Tests
 		assertNotNull(engine.bestMove);
 		assertEquals("b8a8", engine.bestMove);
 		visualize(engine.getBestMove().commit());
-		engine.evaluate(game, 1000).awaitConclusion();
+		engine.evaluateDepth(game, 3).awaitConclusion();
 		assertTrue(engine.foundMate());
 		assertEquals(1, engine.getMateIn());
 		assertEquals(Color.WHITE, engine.getMater());
@@ -447,27 +447,7 @@ public class Tests
 		assertNotNull(engine.bestMove);
 		assertEquals("e6d5", engine.bestMove);
 		visualize(engine.getBestMove().commit());
-		engine.dispose();
-	}
-
-	@Test(timeout = 2000L)
-	public void engineTimeouter() throws ChessException, IOException
-	{
-		final Game game = new Game().loadFEN("5Bbk/q7/8/p7/8/K7/5P2/6Q1 w").start();
-		Engine engine = new EngineBuilder("stockfish_9.exe", 1).build();
-		engine.evaluateDepth(game, 40, 200).awaitConclusion().dispose();
-	}
-
-	@Test(timeout = 2000L)
-	public void engineKiller() throws ChessException, IOException
-	{
-		System.out.println("Engine Killer\n");
-		final Game game = new Game().loadFEN("5Bbk/q7/8/p7/8/K7/5P2/6Q1 w").start();
-		Engine engine = new EngineBuilder("stockfish_9.exe", 1).build();
-		engine.evaluateDepth(game, 40, 0);
-		engine.killer.killIn(200);
-		engine.awaitConclusion();
-		engine.dispose();
+		engine.interrupt();
 	}
 
 	// Variants

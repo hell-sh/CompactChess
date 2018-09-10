@@ -14,10 +14,10 @@ public class Move
 	public final PieceType promoteTo;
 	public final boolean isEnPassant;
 	public final CastlingType castlingType;
-	private final WeakReference<Game> game;
-	private final Game _game;
 	public final ArrayList<String> annotations = new ArrayList<>();
 	public final ArrayList<String> annotationTags = new ArrayList<>();
+	private final WeakReference<Game> game;
+	private final Game _game;
 	private boolean annotate = true;
 
 	public Move(Game game, Square fromSquare, Square toSquare, PieceType promoteTo, boolean validate) throws ChessException

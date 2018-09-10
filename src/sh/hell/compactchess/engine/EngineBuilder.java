@@ -1,67 +1,55 @@
 package sh.hell.compactchess.engine;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @SuppressWarnings({"WeakerAccess", "UnusedReturnValue", "unused"})
 public class EngineBuilder extends Thread
 {
-	final String binary;
-	final List<String> binaryArguments;
-	final byte threads;
-	final int moveOverhead;
-	final boolean doPonder;
+	public final String binary;
+	public final List<String> binaryArguments;
+	public final Map<String, String> uciOptions;
+	public final boolean debug;
 
-	EngineBuilder()
+	protected EngineBuilder(boolean debug)
 	{
 		this.binary = null;
 		this.binaryArguments = null;
-		this.threads = 0;
-		this.moveOverhead = 0;
-		this.doPonder = false;
+		this.uciOptions = null;
+		this.debug = debug;
 	}
 
-	public EngineBuilder(String binary, int threads)
+	public EngineBuilder(String binary)
 	{
-		this(binary, threads, 30, true);
+		this(binary, null, null, false);
 	}
 
-	public EngineBuilder(String binary, List<String> binaryArguments, int threads)
+	public EngineBuilder(String binary, List<String> binaryArguments)
 	{
-		this(binary, binaryArguments, threads, 30, true);
+		this(binary, binaryArguments, null, false);
 	}
 
-	public EngineBuilder(String binary, int threads, int moveOverhead)
+	public EngineBuilder(String binary, Map<String, String> uciOptions)
 	{
-		this(binary, new ArrayList<String>()
-		{
-		}, threads, moveOverhead, true);
+		this(binary, null, uciOptions, false);
 	}
 
-	public EngineBuilder(String binary, List<String> binaryArguments, int threads, int moveOverhead)
+	public EngineBuilder(String binary, List<String> binaryArguments, Map<String, String> uciOptions)
 	{
-		this(binary, binaryArguments, threads, moveOverhead, true);
+		this(binary, binaryArguments, uciOptions, false);
 	}
 
-	public EngineBuilder(String binary, int threads, int moveOverhead, boolean doPonder)
-	{
-		this(binary, new ArrayList<String>()
-		{
-		}, threads, moveOverhead, doPonder);
-	}
-
-	public EngineBuilder(String binary, List<String> binaryArguments, int threads, int moveOverhead, boolean doPonder)
+	public EngineBuilder(String binary, List<String> binaryArguments, Map<String, String> uciOptions, boolean debug)
 	{
 		this.binary = binary;
 		this.binaryArguments = binaryArguments;
-		this.threads = (byte) threads;
-		this.moveOverhead = moveOverhead;
-		this.doPonder = doPonder;
+		this.uciOptions = uciOptions;
+		this.debug = debug;
 	}
 
-	public Engine build() throws IOException
+	public Engine build() throws IOException, InterruptedException
 	{
-		return new Engine(binary, binaryArguments, threads, moveOverhead, doPonder);
+		return new Engine(binary, binaryArguments, uciOptions);
 	}
 }

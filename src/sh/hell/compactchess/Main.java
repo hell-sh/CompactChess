@@ -13,17 +13,20 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Scanner;
 
+@SuppressWarnings("ResultOfMethodCallIgnored")
 public class Main
 {
-	public static void main(String[] args) throws IOException, ChessException
+	public static void main(String[] args) throws IOException, ChessException, InterruptedException
 	{
 		System.out.println();
 		main();
 	}
 
-	public static void main() throws IOException, ChessException
+	@SuppressWarnings("ResultOfMethodCallIgnored")
+	private static void main() throws IOException, ChessException, InterruptedException
 	{
 		System.out.println("# CompactChess");
 		System.out.println();
@@ -63,7 +66,7 @@ public class Main
 		while(true);
 	}
 
-	public static void convertNotation() throws IOException, ChessException
+	private static void convertNotation() throws IOException, ChessException, InterruptedException
 	{
 		System.out.println("# Compact Chess > Convert Notation");
 		System.out.println();
@@ -115,7 +118,7 @@ public class Main
 		while(true);
 	}
 
-	public static void convertNotationFromFEN() throws ChessException, IOException
+	private static void convertNotationFromFEN() throws ChessException, IOException, InterruptedException
 	{
 		System.out.println("# Compact Chess > Convert Notation > From FEN");
 		System.out.println();
@@ -125,7 +128,7 @@ public class Main
 		convertNotationTo(new Game().loadFEN(fen).start());
 	}
 
-	public static void convertNotationFromPGN() throws ChessException, IOException
+	private static void convertNotationFromPGN() throws ChessException, IOException, InterruptedException
 	{
 		System.out.println("# Compact Chess > Convert Notation > From PGN");
 		System.out.println();
@@ -149,7 +152,7 @@ public class Main
 		convertNotationTo(Game.fromPGN(pgn.toString()));
 	}
 
-	public static void convertNotationFromPGNFile() throws ChessException, IOException
+	private static void convertNotationFromPGNFile() throws ChessException, IOException, InterruptedException
 	{
 		System.out.println("# Compact Chess > Convert Notation > From PGN File");
 		System.out.println();
@@ -168,7 +171,7 @@ public class Main
 		convertNotationTo(games);
 	}
 
-	public static void convertNotationFromCGNFile() throws ChessException, IOException
+	private static void convertNotationFromCGNFile() throws ChessException, IOException, InterruptedException
 	{
 		System.out.println("# Compact Chess > Convert Notation > From CGN File");
 		System.out.println();
@@ -178,7 +181,7 @@ public class Main
 		convertNotationTo(Game.fromCGN(new FileInputStream(file)));
 	}
 
-	public static void convertNotationTo(final Game game) throws ChessException, IOException
+	private static void convertNotationTo(final Game game) throws ChessException, IOException, InterruptedException
 	{
 		System.out.println("# Compact Chess > Convert Notation > Game to...");
 		System.out.println();
@@ -243,7 +246,7 @@ public class Main
 		while(true);
 	}
 
-	public static void convertNotationTo(final ArrayList<Game> games) throws ChessException, IOException
+	private static void convertNotationTo(final ArrayList<Game> games) throws ChessException, IOException, InterruptedException
 	{
 		if(games.size() == 0)
 		{
@@ -299,7 +302,7 @@ public class Main
 		}
 	}
 
-	public static void convertNotationToCGNFile(final Game game) throws ChessException, IOException
+	private static void convertNotationToCGNFile(final Game game) throws ChessException, IOException, InterruptedException
 	{
 		System.out.println("# Compact Chess > Convert Notation > To CGN File");
 		System.out.println();
@@ -312,7 +315,7 @@ public class Main
 		convertNotationTo(game);
 	}
 
-	public static void convertNotationToCGNFile(final ArrayList<Game> games) throws ChessException, IOException
+	private static void convertNotationToCGNFile(final ArrayList<Game> games) throws ChessException, IOException, InterruptedException
 	{
 		System.out.println("# Compact Chess > Convert Notation > To CGN File");
 		System.out.println();
@@ -328,7 +331,7 @@ public class Main
 		convertNotationTo(games);
 	}
 
-	public static void engineOperations() throws IOException, ChessException
+	private static void engineOperations() throws IOException, ChessException, InterruptedException
 	{
 		System.out.println("# CompactChess > Engine Operations > Configure Engine");
 		System.out.println();
@@ -342,13 +345,15 @@ public class Main
 		System.out.print("Engine Binary: ");
 		final String binary = new Scanner(System.in).useDelimiter("\\n").next();
 		System.out.println();
-		final Engine engine = new Engine(binary, threads);
+		final HashMap<String, String> uciOptions = new HashMap<>();
+		uciOptions.put("Threads", String.valueOf(threads));
+		final Engine engine = new Engine(binary, null, uciOptions, true);
 		final Game game = new Game().loadFEN("4k3/8/R3K3/8/8/8/8/8 w - -").start();
 		final long timeStart = System.currentTimeMillis();
-		final Move move = engine.evaluate(game, 3000).awaitConclusion().getBestMove();
+		final Move move = engine.evaluateDepth(game, 1).awaitConclusion().getBestMove();
 		if(move == null)
 		{
-			System.out.println("Warning: Engine failed to solve a mate in 1 in less than 3 seconds.");
+			System.out.println("Warning: Engine failed to solve a mate in 1.");
 		}
 		else if(move.isCheckmate())
 		{
@@ -365,7 +370,7 @@ public class Main
 		engineOperations(engine);
 	}
 
-	public static void engineOperations(final Engine engine) throws IOException, ChessException
+	private static void engineOperations(final Engine engine) throws IOException, ChessException, InterruptedException
 	{
 		System.out.println("# CompactChess > Engine Operations");
 		System.out.println();
@@ -398,7 +403,7 @@ public class Main
 
 				case 'D':
 				case 'd':
-					engine.dispose();
+					engine.interrupt();
 					main();
 					return;
 			}
@@ -406,7 +411,7 @@ public class Main
 		while(true);
 	}
 
-	public static void engineOperationsFinishPosition(final Engine engine) throws ChessException, IOException
+	private static void engineOperationsFinishPosition(final Engine engine) throws ChessException, IOException, InterruptedException
 	{
 		System.out.println("# CompactChess > Engine Operations > Finish Position");
 		System.out.println();
@@ -417,7 +422,6 @@ public class Main
 		final int depth = Integer.valueOf(new Scanner(System.in).useDelimiter("\\n").next());
 		System.out.println();
 		final Game game = new Game().loadFEN(fen).start();
-		engine.debug(true);
 		do
 		{
 			final Move move = engine.evaluateDepth(game, depth).awaitConclusion().getBestMove();
@@ -443,7 +447,7 @@ public class Main
 		engineOperations(engine);
 	}
 
-	public static void engineOperationsPlayAgainst(Engine engine) throws ChessException, IOException
+	private static void engineOperationsPlayAgainst(Engine engine) throws ChessException, IOException, InterruptedException
 	{
 		System.out.println("# CompactChess > Engine Operations > Play Against");
 		System.out.println();

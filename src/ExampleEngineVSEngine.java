@@ -6,32 +6,29 @@ import sh.hell.compactchess.game.Move;
 
 import java.io.FileWriter;
 import java.io.IOException;
-import java.text.DecimalFormat;
-import java.text.NumberFormat;
+import java.util.HashMap;
 
 public class ExampleEngineVSEngine
 {
-	public static void main(String[] args) throws IOException
+	public static void main(String[] args) throws IOException, InterruptedException
 	{
 		System.out.println("Initializing engines...");
+		final HashMap<String, String> uciOptions = new HashMap<>();
+		uciOptions.put("Threads", "3");
 		final String whiteName = "Stockfish 9";
-		final Engine whiteEngine = new Engine("stockfish_9_multivariant.exe", 3).debug(true);
+		final Engine whiteEngine = new Engine("stockfish_9_multivariant.exe", null, uciOptions, true);
 		//final String whiteName = "LCZero 594";
-		//final Engine whiteEngine = new Engine("lc0.exe", 3).debug(true);
+		//final Engine whiteEngine = new Engine("lc0.exe", null, uciOptions, true).debug(true);
 		//whiteEngine.evaluate(new Game().loadFEN("8/8/8/8/8/8/8/8 w - -").setTimed(1, 0).start()).awaitConclusion();
-		//final String whiteName = "CompactChess";
-		//final Engine whiteEngine = new BuiltInEngine(3);
 		final String blackName = "Stockfish 9";
-		final Engine blackEngine = new Engine("stockfish_9_multivariant.exe", 3).debug(true);
+		final Engine blackEngine = new Engine("stockfish_9_multivariant.exe", null, uciOptions, true);
 		//final String blackName = "LCZero 594";
-		//final Engine blackEngine = new Engine("lc0.exe", 3).debug(true);
+		//final Engine blackEngine = new Engine("lc0.exe", null, uciOptions, true).debug(true);
 		//blackEngine.evaluate(new Game().loadFEN("8/8/8/8/8/8/8/8 w - -").setTimed(1, 0).start()).awaitConclusion();
-		//final String blackName = "CompactChess";
-		//final Engine blackEngine = new BuiltInEngine(3);
 		System.out.println("Engines are ready.");
 		try
 		{
-			final NumberFormat formatter = new DecimalFormat("#0.00");
+			//noinspection InfiniteLoopStatement
 			do
 			{
 				final Game game = new Game().setTimed(15 * 1000, 0).setPlayerNames(whiteName, blackName).setTag("Event", "Engine VS Engine").start();
@@ -95,7 +92,7 @@ public class ExampleEngineVSEngine
 		{
 			e.printStackTrace();
 		}
-		whiteEngine.dispose();
-		blackEngine.dispose();
+		whiteEngine.interrupt();
+		blackEngine.interrupt();
 	}
 }

@@ -15,187 +15,154 @@ import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.Map;
 import java.util.Scanner;
 
 @SuppressWarnings({"WeakerAccess", "UnusedReturnValue", "unused"})
 public class Engine extends EngineBuilder
 {
-	public final EngineKiller killer;
-	private final Object LOCK = new Object();
-	private final Object CONCLUDE_LOCK = new Object();
-	private final EngineTimeouter timeouter;
+	public final ArrayList<Variant> supportedVariants = new ArrayList<>();
+	final Object LOCK = new Object();
+	final Scanner input;
 	private final Thread thread;
+	private final Process process;
+	private final OutputStreamWriter output;
+	public boolean isReady = false;
+	public boolean isEvaluating = false;
 	public String bestMove = null;
 	public String ponder = null;
 	public short score = 0;
 	public Game evaluatingGame = null;
-	private Process process;
-	private boolean doDebug = false;
-	private int mateIn = 0;
-	private EngineTask task = EngineTask.IDLE;
+	int mateIn = 0;
 	private boolean goingInfinite;
-	private OutputStreamWriter output;
-	private Scanner input;
 
-	public Engine()
+	protected Engine(boolean doDebug)
 	{
-		super();
-		this.killer = null;
-		this.timeouter = null;
+		super(doDebug);
 		this.thread = null;
+		this.process = null;
+		this.output = null;
+		this.input = null;
 	}
 
-	public Engine(String binary, int threads) throws IOException
+	public Engine(String binary) throws IOException, InterruptedException
 	{
-		this(binary, threads, 30, true);
+		this(binary, null, null, false);
 	}
 
-	public Engine(String binary, List<String> binaryArguments, int threads) throws IOException
+	public Engine(String binary, List<String> binaryArguments) throws IOException, InterruptedException
 	{
-		this(binary, binaryArguments, threads, 30, true);
+		this(binary, binaryArguments, null, false);
 	}
 
-	public Engine(String binary, int threads, int moveOverhead) throws IOException
+	public Engine(String binary, Map<String, String> uciOptions) throws IOException, InterruptedException
 	{
-		this(binary, new ArrayList<String>()
+		this(binary, null, uciOptions, false);
+	}
+
+	public Engine(String binary, List<String> binaryArguments, Map<String, String> uciOptions) throws IOException, InterruptedException
+	{
+		this(binary, binaryArguments, uciOptions, false);
+	}
+
+	public Engine(String binary, List<String> binaryArguments, Map<String, String> uciOptions, boolean debug) throws IOException, InterruptedException
+	{
+		super(binary, binaryArguments, uciOptions, debug);
+		supportedVariants.add(Variant.STANDARD);
+		if(binaryArguments == null)
 		{
-		}, threads, moveOverhead, true);
-	}
-
-	public Engine(String binary, List<String> binaryArguments, int threads, int moveOverhead) throws IOException
-	{
-		this(binary, binaryArguments, threads, moveOverhead, true);
-	}
-
-	public Engine(String binary, int threads, int moveOverhead, boolean doPonder) throws IOException
-	{
-		this(binary, new ArrayList<String>()
+			process = new ProcessBuilder(binary).start();
+		}
+		else
 		{
-		}, threads, moveOverhead, doPonder);
-	}
-
-	public Engine(String binary, List<String> binaryArguments, int threads, int moveOverhead, boolean doPonder) throws IOException
-	{
-		super(binary, binaryArguments, threads, moveOverhead, doPonder);
-		this.assumeDead();
-		this.timeouter = new EngineTimeouter(this);
-		this.killer = new EngineKiller(this);
-		this.thread = new Thread(this, "Engine " + binary);
-		this.thread.start();
-	}
-
-	public Engine copy() throws IOException
-	{
-		return super.build();
-	}
-
-	void assumeDead() throws IOException
-	{
-		synchronized(LOCK)
+			List<String> command = new ArrayList<>();
+			command.add(binary);
+			command.addAll(binaryArguments);
+			process = new ProcessBuilder(command).start();
+		}
+		output = new OutputStreamWriter(new BufferedOutputStream(process.getOutputStream()));
+		input = new Scanner(new InputStreamReader(process.getInputStream())).useDelimiter("\n");
+		thread = new Thread(this, "Engine " + binary);
+		thread.start();
+		if(debug)
 		{
-			boolean kill = (this.process != null);
-			if(kill)
-			{
-				//System.out.println("# Killing Engine...");
-				task = EngineTask.IDLE;
-				this.output.close();
-				this.output = null;
-				this.input = null;
-				this.process.destroy();
-				this.process = null;
-			}
-			if(binaryArguments.size() > 0)
-			{
-				List<String> binaryArguments_ = new ArrayList<>();
-				binaryArguments_.add(binary);
-				binaryArguments_.addAll(binaryArguments);
-				this.process = new ProcessBuilder(binaryArguments_).start();
-			}
-			else
-			{
-				this.process = new ProcessBuilder(binary).start();
-			}
-			this.output = new OutputStreamWriter(new BufferedOutputStream(process.getOutputStream()));
-			this.input = new Scanner(new InputStreamReader(process.getInputStream())).useDelimiter("\n");
-			output.write("uci\n");
+			System.out.println("< uci");
+		}
+		output.write("uci\n");
+		if(debug)
+		{
+			System.out.println("< debug on");
 			output.write("debug on\n");
-			output.write("setoption name Threads value " + threads + "\n");
-			output.write("setoption name Move Overhead value " + moveOverhead + "\n");
-			output.write("setoption name Ponder value " + doPonder + "\n");
-			//output.write("setoption name SlowMover value 30\n");
-			//output.write("setoption name Slow Mover value 30\n");
-			output.write("isready\n");
-			if(kill)
+		}
+		if(uciOptions != null)
+		{
+			for(Map.Entry<String, String> option : uciOptions.entrySet())
 			{
-				output.flush();
+				if(debug)
+				{
+					System.out.println("< setoption name " + option.getKey() + " value " + option.getValue());
+				}
+				output.write("setoption name " + option.getKey() + " value " + option.getValue() + "\n");
 			}
 		}
+		output.flush();
+		awaitReady();
+	}
+
+	public Engine copy() throws IOException, InterruptedException
+	{
+		return build();
 	}
 
 	public Engine evaluate(Game game) throws IOException, ChessException
 	{
-		return evaluate(game, "go", 0);
-	}
-
-	public Engine evaluate(Game game, long mslimit) throws IOException, ChessException
-	{
-		return evaluate(game, "go", mslimit);
-	}
-
-	public Engine evaluateDepth(Game game, int depth) throws ChessException, IOException
-	{
-		return evaluate(game, "go depth " + depth, 0);
-	}
-
-	public Engine evaluateDepth(Game game, int depth, long mslimit) throws ChessException, IOException
-	{
-		return evaluate(game, "go depth " + depth, mslimit);
+		return evaluate(game, "go");
 	}
 
 	public Engine evaluateTime(Game game, long ms) throws ChessException, IOException
 	{
-		return evaluate(game, "go movetime " + ms, ms + 500);
+		return evaluate(game, "go movetime " + ms);
+	}
+
+	public Engine evaluateDepth(Game game, int depth) throws ChessException, IOException
+	{
+		return evaluate(game, "go depth " + depth);
 	}
 
 	public Engine evaluateInfinitely(Game game) throws IOException, ChessException
 	{
-		return evaluate(game, "go infinite", 0);
+		return evaluate(game, "go infinite");
 	}
 
-	private Engine evaluate(Game game, String command, long mslimit) throws IOException, ChessException
+	private Engine evaluate(Game game, String command) throws IOException, ChessException
 	{
 		synchronized(LOCK)
 		{
-			if(task != EngineTask.IDLE)
+			if(isEvaluating)
 			{
-				throw new ChessException("Engine is still working.");
+				throw new ChessException("Can't give busy Engine another task.");
 			}
-			this.score = 0;
-			this.mateIn = 0;
-			this.bestMove = null;
-			this.ponder = null;
-			this.timeouter.stopEnforcing();
-			this.killer.abortMission();
-			if(this.evaluatingGame != game)
+			isEvaluating = true;
+			score = 0;
+			mateIn = 0;
+			bestMove = null;
+			ponder = null;
+			if(evaluatingGame != game)
 			{
-				this.evaluatingGame = game;
+				evaluatingGame = game;
 				output.write("ucinewgame\n");
 			}
-		}
-		synchronized(CONCLUDE_LOCK)
-		{
-			this.goingInfinite = (command.equals("go infinite"));
-			if(this.doDebug)
+			goingInfinite = (command.equals("go infinite"));
+			if(debug)
 			{
-				System.out.println("> setoption name UCI_Variant value " + evaluatingGame.variant.uciName);
+				System.out.println("< setoption name UCI_Variant value " + evaluatingGame.variant.uciName);
 			}
 			output.write("setoption name UCI_Variant value " + evaluatingGame.variant.uciName + "\n");
 			if(evaluatingGame.variant == Variant.CHESS960)
 			{
-				if(this.doDebug)
+				if(debug)
 				{
-					System.out.println("> setoption name UCI_Chess960 value true");
+					System.out.println("< setoption name UCI_Chess960 value true");
 				}
 				output.write("setoption name UCI_Chess960 value true\n");
 			}
@@ -219,61 +186,22 @@ public class Engine extends EngineBuilder
 			//{
 			//	position = new StringBuilder("position fen " + game.getFEN());
 			//}
-			if(this.doDebug)
+			if(debug)
 			{
-				System.out.println("> " + position.toString());
+				System.out.println("< " + position.toString());
 			}
 			output.write("" + position.append("\n").toString());
 			if(evaluatingGame.timeControl != TimeControl.UNLIMITED)
 			{
 				command += " wtime " + evaluatingGame.whitemsecs + " btime " + evaluatingGame.blackmsecs + " winc " + evaluatingGame.increment + " binc " + evaluatingGame.increment;
 			}
-			if(this.doDebug)
+			if(debug)
 			{
-				System.out.println("> " + command);
-			}
-			synchronized(LOCK)
-			{
-				task = EngineTask.START_EVALUATING;
+				System.out.println("< " + command);
 			}
 			output.write(command + "\n");
-			if(game.timeControl != TimeControl.UNLIMITED)
-			{
-				game.resetMoveTime();
-			}
 			output.flush();
-		}
-		do
-		{
-			synchronized(LOCK)
-			{
-				if(task == EngineTask.EVALUATING)
-				{
-					break;
-				}
-			}
-			try
-			{
-				Thread.sleep(1);
-			}
-			catch(InterruptedException e)
-			{
-				e.printStackTrace();
-			}
-		}
-		while(true);
-		if(mslimit > 0)
-		{
-			timeouter.enforceTimeout(mslimit);
-		}
-		return this;
-	}
-
-	public Engine debug(boolean debug)
-	{
-		synchronized(LOCK)
-		{
-			this.doDebug = debug;
+			game.resetMoveTime();
 		}
 		return this;
 	}
@@ -283,11 +211,11 @@ public class Engine extends EngineBuilder
 		final NumberFormat formatter = new DecimalFormat("#0.00");
 		synchronized(LOCK)
 		{
-			if(this.mateIn != 0)
+			if(mateIn != 0)
 			{
 				return "#" + this.mateIn;
 			}
-			return formatter.format((double) this.score / 100);
+			return formatter.format((double) score / 100);
 		}
 	}
 
@@ -295,14 +223,14 @@ public class Engine extends EngineBuilder
 	{
 		synchronized(LOCK)
 		{
-			if(this.bestMove == null)
+			if(bestMove == null)
 			{
 				return null;
 			}
-			Move move = evaluatingGame.uciMove(this.bestMove);
+			Move move = evaluatingGame.uciMove(bestMove);
 			synchronized(move.annotationTags)
 			{
-				move.annotationTags.add("[%eval " + this.getEvaluation().replace(",", ".") + "]");
+				move.annotationTags.add("[%eval " + getEvaluation().replace(",", ".") + "]");
 			}
 			return move;
 		}
@@ -312,65 +240,69 @@ public class Engine extends EngineBuilder
 	{
 		synchronized(LOCK)
 		{
-			if(this.ponder == null)
+			if(ponder == null)
 			{
 				return null;
 			}
-			return evaluatingGame.uciMove(this.ponder);
+			return evaluatingGame.uciMove(ponder);
 		}
 	}
 
-	public Engine conclude() throws IOException, ChessException
+	public Engine awaitReady() throws InterruptedException
 	{
-		output.write("stop\n");
-		output.flush();
-		goingInfinite = false;
-		return this.awaitConclusion();
-	}
-
-	public Engine awaitConclusion() throws ChessException
-	{
-		if(goingInfinite)
-		{
-			throw new ChessException("Refusing to await conclusion of infinite evaluation. Use Engine.conclude() instead.");
-		}
 		do
 		{
-			synchronized(CONCLUDE_LOCK)
+			synchronized(LOCK)
 			{
-				synchronized(LOCK)
+				if(isReady)
 				{
-					if(task == EngineTask.IDLE)
-					{
-						return this;
-					}
+					return this;
 				}
 			}
-			try
-			{
-				Thread.sleep(10);
-			}
-			catch(InterruptedException e)
-			{
-				e.printStackTrace();
-			}
+			Thread.sleep(10);
 		}
 		while(true);
 	}
 
-	public void dispose()
+	public Engine conclude() throws IOException, InterruptedException
 	{
-		this.thread.interrupt();
-		this.timeouter.thread.interrupt();
-		this.killer.thread.interrupt();
-		this.process.destroy();
+		output.write("stop\n");
+		output.flush();
+		synchronized(LOCK)
+		{
+			goingInfinite = false;
+		}
+		return this.awaitConclusion();
+	}
+
+	public Engine awaitConclusion() throws InterruptedException, IOException
+	{
+		synchronized(LOCK)
+		{
+			if(goingInfinite)
+			{
+				return conclude();
+			}
+		}
+		do
+		{
+			synchronized(LOCK)
+			{
+				if(!isEvaluating)
+				{
+					return this;
+				}
+			}
+			Thread.sleep(10);
+		}
+		while(true);
 	}
 
 	public boolean foundMate()
 	{
 		synchronized(LOCK)
 		{
-			return this.mateIn != 0;
+			return mateIn != 0;
 		}
 	}
 
@@ -378,7 +310,7 @@ public class Engine extends EngineBuilder
 	{
 		synchronized(LOCK)
 		{
-			return Math.abs(this.mateIn);
+			return Math.abs(mateIn);
 		}
 	}
 
@@ -386,11 +318,11 @@ public class Engine extends EngineBuilder
 	{
 		synchronized(LOCK)
 		{
-			if(!this.foundMate())
+			if(!foundMate())
 			{
 				return null;
 			}
-			return this.mateIn > 0 ? evaluatingGame.toMove : (evaluatingGame.toMove.opposite());
+			return mateIn > 0 ? evaluatingGame.toMove : (evaluatingGame.toMove.opposite());
 		}
 	}
 
@@ -398,11 +330,41 @@ public class Engine extends EngineBuilder
 	{
 		synchronized(LOCK)
 		{
-			if(!this.foundMate())
+			if(!foundMate())
 			{
 				return null;
 			}
-			return this.getMater().opposite();
+			return getMater().opposite();
+		}
+	}
+
+	/**
+	 * @deprecated Use {@link Engine#interrupt()} instead.
+	 */
+	@Deprecated
+	public void dispose()
+	{
+		this.interrupt();
+	}
+
+	@Override
+	public void interrupt()
+	{
+		synchronized(LOCK)
+		{
+			if(thread == null)
+			{
+				return;
+			}
+			thread.interrupt();
+			goingInfinite = false;
+		}
+		try
+		{
+			awaitConclusion();
+		}
+		catch(InterruptedException | IOException ignored)
+		{
 		}
 	}
 
@@ -413,103 +375,124 @@ public class Engine extends EngineBuilder
 		{
 			do
 			{
+				String line = input.next();
 				synchronized(LOCK)
 				{
-					if(task == EngineTask.START_EVALUATING)
+					if(debug)
 					{
-						task = EngineTask.EVALUATING;
-					}
-					if(task != EngineTask.EVALUATING)
-					{
-						continue;
+						System.out.println("> " + line);
 					}
 				}
-				synchronized(CONCLUDE_LOCK)
+				if(line.startsWith("uciok"))
 				{
-					try
+					synchronized(LOCK)
 					{
-						while(task == EngineTask.EVALUATING && !this.thread.isInterrupted() && input != null)
+						isReady = true;
+					}
+				}
+				else if(line.startsWith("option name UCI_Chess960 type check"))
+				{
+					synchronized(supportedVariants)
+					{
+						supportedVariants.add(Variant.CHESS960);
+					}
+				}
+				else if(line.startsWith("option name UCI_Variant type combo "))
+				{
+					StringBuilder var = null;
+					for(String section : line.split(" "))
+					{
+						if(section.equals("var"))
 						{
-							String line = input.next();
-							if(this.doDebug)
+							if(var != null)
 							{
-								System.out.println("< " + line);
-							}
-							if(line.startsWith("info "))
-							{
-								String[] arr = line.split(" ");
-								String key = "";
-								for(int i = 1; i < arr.length; i++)
+								synchronized(supportedVariants)
 								{
-									if(key.equals(""))
-									{
-										if(!arr[i].equals("score"))
-										{
-											key = arr[i];
-										}
-									}
-									else
-									{
-										String value = arr[i].trim();
-										//System.out.println(key+"="+value);
-										synchronized(LOCK)
-										{
-											switch(key)
-											{
-												case "cp":
-													this.score = Short.parseShort(value);
-													break;
-												case "mate":
-													this.mateIn = Integer.parseInt(value);
-													break;
-												default:
-											}
-										}
-										key = "";
-									}
+									supportedVariants.add(Variant.fromKey(var.toString()));
 								}
 							}
-							else if(line.startsWith("bestmove "))
+							var = new StringBuilder();
+						}
+						else
+						{
+							if(var != null)
 							{
-								String[] arr = line.split(" ");
-								synchronized(LOCK)
+								if(var.length() != 0)
 								{
-									this.bestMove = arr[1].trim();
-									if(this.bestMove.equals("empty") || this.bestMove.equals("(none)"))
-									{
-										this.bestMove = null;
-									}
-									if(arr.length > 3)
-									{
-										this.ponder = arr[3].trim();
-										if(this.ponder.equals("empty") || this.ponder.equals("(none)"))
-										{
-											this.ponder = null;
-										}
-									}
+									var.append(" ");
 								}
-								break;
+								var.append(section);
 							}
 						}
 					}
-					catch(NoSuchElementException ignored)
+					if(var != null && var.length() > 0)
 					{
-
-					}
-					synchronized(LOCK)
-					{
-						task = EngineTask.IDLE;
+						synchronized(supportedVariants)
+						{
+							supportedVariants.add(Variant.fromKey(var.toString()));
+						}
 					}
 				}
-				this.timeouter.stopEnforcing();
-				this.killer.abortMission();
-				Thread.sleep(10);
+				else if(line.startsWith("info "))
+				{
+					String[] arr = line.split(" ");
+					String key = "";
+					for(int i = 1; i < arr.length; i++)
+					{
+						if(key.equals(""))
+						{
+							if(!arr[i].equals("score"))
+							{
+								key = arr[i];
+							}
+						}
+						else
+						{
+							String value = arr[i].trim();
+							synchronized(LOCK)
+							{
+								switch(key)
+								{
+									case "cp":
+										score = Short.parseShort(value);
+										break;
+									case "mate":
+										mateIn = Integer.parseInt(value);
+										break;
+									default:
+								}
+							}
+							key = "";
+						}
+					}
+				}
+				else if(line.startsWith("bestmove "))
+				{
+					String[] arr = line.split(" ");
+					synchronized(LOCK)
+					{
+						bestMove = arr[1].trim();
+						if(bestMove.equals("empty") || bestMove.equals("(none)"))
+						{
+							bestMove = null;
+						}
+						if(arr.length > 3)
+						{
+							ponder = arr[3].trim();
+							if(ponder.equals("empty") || ponder.equals("(none)"))
+							{
+								ponder = null;
+							}
+						}
+						isEvaluating = false;
+					}
+				}
 			}
-			while(!this.thread.isInterrupted());
+			while(!Thread.interrupted());
 		}
-		catch(InterruptedException ignored)
+		catch(Exception ignored)
 		{
-
 		}
+		process.destroy();
 	}
 }
