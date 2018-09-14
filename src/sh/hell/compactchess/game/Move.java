@@ -22,12 +22,11 @@ public class Move
 
 	public Move(Game game, Square fromSquare, Square toSquare, PieceType promoteTo, boolean validate) throws ChessException
 	{
-		final Piece piece = fromSquare.getPiece();
 		if(game.status == GameStatus.BUILDING)
 		{
 			throw new InvalidMoveException("The game has not started yet");
 		}
-		if(piece == null)
+		if(!fromSquare.hasPiece())
 		{
 			throw new InvalidMoveException("There's no piece on " + fromSquare.getAlgebraicNotation());
 		}
@@ -35,23 +34,11 @@ public class Move
 		{
 			throw new InvalidMoveException("Can't move to the same square");
 		}
-		if(promoteTo != null)
-		{
-			if(piece.type != PieceType.PAWN)
-			{
-				throw new InvalidMoveException("Only pawns can be promoted");
-			}
-			if(!game.variant.getPossiblePromotions().contains(promoteTo))
-			{
-				throw new InvalidMoveException("You can't promote to " + promoteTo.name().toLowerCase() + " in " + game.variant.name);
-			}
-		}
-		if(piece.type == PieceType.KING && (piece.color == Color.WHITE ? (fromSquare.rank == 0 && (game.whiteCanCastle || game.whiteCanCastleQueenside)) : (fromSquare.rank == 7 && (game.blackCanCastle || game.blackCanCastleQueenside))))
+		if(fromSquare.pieceType == PieceType.KING && (fromSquare.pieceColor == Color.WHITE ? (fromSquare.rank == 0 && (game.whiteCanCastle || game.whiteCanCastleQueenside)) : (fromSquare.rank == 7 && (game.blackCanCastle || game.blackCanCastleQueenside))))
 		{
 			if(game.variant == Variant.CHESS960)
 			{
-				final Piece toPiece = toSquare.getPiece();
-				if(toPiece != null && toPiece.type == PieceType.ROOK && toPiece.color == piece.color)
+				if(toSquare.pieceType == PieceType.ROOK && toSquare.pieceColor == fromSquare.pieceColor)
 				{
 					if(toSquare.file > fromSquare.file)
 					{
@@ -91,9 +78,9 @@ public class Move
 		{
 			this.castlingType = CastlingType.NONE;
 		}
-		if(validate && this.castlingType == CastlingType.NONE && !game.getSquaresControlledBy(fromSquare.getPiece()).contains(toSquare))
+		if(validate && this.castlingType == CastlingType.NONE && !game.getSquaresControlledBy(fromSquare).contains(toSquare))
 		{
-			throw new InvalidMoveException("Your " + fromSquare.getPiece().type.name().toLowerCase() + " on " + fromSquare.getAlgebraicNotation() + " can't move to " + toSquare.getAlgebraicNotation());
+			throw new InvalidMoveException("Your " + fromSquare.pieceType.name().toLowerCase() + " on " + fromSquare.getAlgebraicNotation() + " can't move to " + toSquare.getAlgebraicNotation());
 		}
 		this.game = new WeakReference<>(game);
 		this._game = game.copy();
@@ -101,7 +88,7 @@ public class Move
 		this.fromSquare = fromSquare;
 		this.toSquare = toSquare;
 		this.promoteTo = promoteTo;
-		this.isEnPassant = fromSquare.getPiece().type == PieceType.PAWN && toSquare.equals(game.enPassantSquare);
+		this.isEnPassant = fromSquare.pieceType == PieceType.PAWN && toSquare.equals(game.enPassantSquare);
 	}
 
 	public Move annotate(String annotation)
@@ -166,9 +153,10 @@ public class Move
 
 	private void handle(Game game, boolean doCounting, boolean dontCalculate) throws ChessException
 	{
-		Square fromSquare = game.square(this.fromSquare);
-		Piece fromPiece = fromSquare.getPiece();
-		fromSquare.unsetPiece();
+		final Square fromSquare = game.square(this.fromSquare);
+		Color fromPieceColor = fromSquare.pieceColor;
+		PieceType fromPieceType = fromSquare.pieceType;
+		game.unsetPiece(fromSquare);
 		Square toSquare = null;
 		if(doCounting && this.castlingType != CastlingType.NONE)
 		{
@@ -211,25 +199,21 @@ public class Move
 		if(toSquare.hasPiece())
 		{
 			capture = true;
-			synchronized(game.pieces)
+			if(toSquare.pieceType == PieceType.PAWN)
 			{
-				if(!dontCalculate && toSquare.getPiece().type == PieceType.PAWN)
+				synchronized(game.repetitionPostitions)
 				{
-					synchronized(game.repetitionPostitions)
-					{
-						game.repetitionPostitions.clear();
-					}
+					game.repetitionPostitions.clear();
 				}
-				game.pieces.remove(toSquare.getPiece());
 			}
+			game.unsetPiece(toSquare);
 		}
-		toSquare.setPiece(fromPiece);
-		toSquare.getPiece().setSquare(toSquare);
-		if(fromPiece.type == PieceType.PAWN)
+		game.setPiece(toSquare, fromPieceColor, fromPieceType);
+		if(fromPieceType == PieceType.PAWN)
 		{
 			if(promoteTo != null)
 			{
-				toSquare.getPiece().type = promoteTo;
+				toSquare.pieceType = promoteTo;
 			}
 			if(doCounting)
 			{
@@ -248,9 +232,9 @@ public class Move
 			}
 			if(!dontCalculate && game.variant == Variant.CHESS960)
 			{
-				if(fromPiece.type == PieceType.KING)
+				if(fromPieceType == PieceType.KING)
 				{
-					if(fromPiece.color == Color.WHITE)
+					if(fromPieceColor == Color.WHITE)
 					{
 						game.whiteCanCastle = false;
 						game.whiteCanCastleQueenside = false;
@@ -261,24 +245,14 @@ public class Move
 						game.blackCanCastleQueenside = false;
 					}
 				}
-				else if(fromPiece.type == PieceType.ROOK)
+				else if(fromPieceType == PieceType.ROOK)
 				{
-					byte kingFile = 8;
-					synchronized(game.pieces)
-					{
-						for(Piece p : game.pieces)
-						{
-							if(p.color == fromPiece.color && p.type == PieceType.KING)
-							{
-								kingFile = p.getSquare().file;
-							}
-						}
-					}
+					byte kingFile = game.getPieces(fromPieceColor, PieceType.KING).get(0).file;
 					if(kingFile != 8)
 					{
 						if(fromSquare.file > kingFile)
 						{
-							if(fromPiece.color == Color.WHITE)
+							if(fromPieceColor == Color.WHITE)
 							{
 								game.whiteCanCastle = false;
 							}
@@ -289,7 +263,7 @@ public class Move
 						}
 						else
 						{
-							if(fromPiece.color == Color.WHITE)
+							if(fromPieceColor == Color.WHITE)
 							{
 								game.whiteCanCastleQueenside = false;
 							}
@@ -308,7 +282,7 @@ public class Move
 	{
 		if(this.isEnPassant)
 		{
-			Square epPieceSquare;
+			final Square epPieceSquare;
 			if(game.enPassantSquare.rank == 2)
 			{
 				epPieceSquare = game.square(game.enPassantSquare.file, (byte) 3);
@@ -319,11 +293,7 @@ public class Move
 			}
 			if(epPieceSquare.hasPiece())
 			{
-				synchronized(game.pieces)
-				{
-					game.pieces.remove(epPieceSquare.getPiece());
-				}
-				epPieceSquare.unsetPiece();
+				game.unsetPiece(epPieceSquare);
 				synchronized(game.repetitionPostitions)
 				{
 					game.repetitionPostitions.clear();
@@ -332,14 +302,14 @@ public class Move
 		}
 		else
 		{
-			Piece piece = game.square(fromSquare).getPiece();
-			if(piece.type == PieceType.PAWN)
+			final Square fromSquare = game.square(this.fromSquare);
+			if(fromSquare.pieceType == PieceType.PAWN)
 			{
-				if(piece.color == Color.WHITE && fromSquare.rank == 1 && toSquare.rank == 3)
+				if(fromSquare.pieceColor == Color.WHITE && fromSquare.rank == 1 && toSquare.rank == 3)
 				{
 					game.enPassantSquare = game.square(fromSquare.file, (byte) (fromSquare.rank + 1));
 				}
-				else if(piece.color == Color.BLACK && fromSquare.rank == 6 && toSquare.rank == 4)
+				else if(fromSquare.pieceColor == Color.BLACK && fromSquare.rank == 6 && toSquare.rank == 4)
 				{
 					game.enPassantSquare = game.square(fromSquare.file, (byte) (fromSquare.rank - 1));
 				}
@@ -499,7 +469,8 @@ public class Move
 
 	public String getIllegalReason() throws ChessException
 	{
-		if(this._game.square(this.fromSquare).getPiece().color != this._game.toMove)
+		final Square fromSquare = this._game.square(this.fromSquare);
+		if(fromSquare.pieceColor != this._game.toMove)
 		{
 			return "You can only move your own pieces";
 		}
@@ -524,14 +495,7 @@ public class Move
 			}
 			if(this.commitInCopy(true, true).opponentToMove().isCheck())
 			{
-				if(this._game.isCheck())
-				{
-					return "You need to get out of check";
-				}
-				else
-				{
-					return "This would put you in check";
-				}
+				return "You can't play a move which would leave you in check";
 			}
 			if(this.castlingType != CastlingType.NONE)
 			{
@@ -616,13 +580,9 @@ public class Move
 						for(byte file = (byte) (rookFile + 1); file <= rookDestination; file++)
 						{
 							Square s = this._game.square(file, rank);
-							if(s.hasPiece())
+							if(s.hasPiece() && (s.pieceType != PieceType.KING || s.pieceColor != this._game.toMove))
 							{
-								Piece p = s.getPiece();
-								if(p.type != PieceType.KING || p.color != this._game.toMove)
-								{
-									return "You can't castle because " + s.getAlgebraicNotation() + " is occupied";
-								}
+								return "You can't castle because " + s.getAlgebraicNotation() + " is occupied";
 							}
 						}
 					}
@@ -631,13 +591,9 @@ public class Move
 						for(byte file = (byte) (rookFile - 1); file >= rookDestination; file--)
 						{
 							Square s = this._game.square(file, rank);
-							if(s.hasPiece())
+							if(s.hasPiece() && (s.pieceType != PieceType.KING || s.pieceColor != this._game.toMove))
 							{
-								Piece p = s.getPiece();
-								if(p.type != PieceType.KING || p.color != this._game.toMove)
-								{
-									return "You can't castle because " + s.getAlgebraicNotation() + " is occupied";
-								}
+								return "You can't castle because " + s.getAlgebraicNotation() + " is occupied";
 							}
 						}
 					}
@@ -658,6 +614,17 @@ public class Move
 				return this.fromSquare.getPiece().type.name() + " can't move to " + toSquare.getAlgebraicNotation();
 			}
 			*/
+		}
+		if(this.promoteTo != null)
+		{
+			if(fromSquare.pieceType != PieceType.PAWN)
+			{
+				return "Only pawns can be promoted";
+			}
+			if(!this._game.variant.getPossiblePromotions().contains(promoteTo))
+			{
+				return "You can't promote to " + promoteTo.name().toLowerCase() + " in the " + this._game.variant.name + " variant";
+			}
 		}
 		return null;
 	}
@@ -733,17 +700,17 @@ public class Move
 				}
 				break;
 			default:
-				final Piece piece = _game.square(fromSquare).getPiece();
+				final Square fromSquare = _game.square(this.fromSquare);
 				final boolean capture = _game.square(toSquare).hasPiece();
-				if(piece.type != PieceType.PAWN)
+				if(fromSquare.pieceType != PieceType.PAWN)
 				{
 					if(variation == AlgebraicNotationVariation.FAN)
 					{
-						an.append(piece.getSymbol(false));
+						an.append(fromSquare.getSymbol(false));
 					}
 					else
 					{
-						an.append(piece.type.getNotationChar(language));
+						an.append(fromSquare.pieceType.getNotationChar(language));
 					}
 				}
 				if(variation == AlgebraicNotationVariation.LAN || variation == AlgebraicNotationVariation.RAN)
@@ -752,24 +719,20 @@ public class Move
 				}
 				else
 				{
-					final ArrayList<Piece> ambiguities = new ArrayList<>();
-					for(Piece p : _game.pieces)
+					final ArrayList<Square> ambiguities = new ArrayList<>();
+					for(Square s : _game.getPieces(fromSquare.pieceColor, fromSquare.pieceType))
 					{
-						if(p.getSquare().equals(fromSquare) || p.color != piece.color || p.type != piece.type)
+						if(!s.equals(fromSquare) && _game.getSquaresControlledBy(s).contains(toSquare))
 						{
-							continue;
-						}
-						if(_game.getSquaresControlledBy(p).contains(toSquare))
-						{
-							ambiguities.add(p);
+							ambiguities.add(s);
 						}
 					}
-					if(ambiguities.size() > 0 || (capture && piece.type == PieceType.PAWN))
+					if(ambiguities.size() > 0 || (capture && fromSquare.pieceType == PieceType.PAWN))
 					{
 						boolean solutionWorks = true;
-						for(Piece p : ambiguities)
+						for(Square s : ambiguities)
 						{
-							if(p.getSquare().file == fromSquare.file)
+							if(s.file == fromSquare.file)
 							{
 								solutionWorks = false;
 								break;
@@ -782,9 +745,9 @@ public class Move
 						else
 						{
 							solutionWorks = true;
-							for(Piece p : ambiguities)
+							for(Square s : ambiguities)
 							{
-								if(p.getSquare().rank == fromSquare.rank)
+								if(s.rank == fromSquare.rank)
 								{
 									solutionWorks = false;
 									break;
@@ -808,10 +771,10 @@ public class Move
 						an.append("x");
 						if(variation == AlgebraicNotationVariation.RAN)
 						{
-							final Piece piece_ = _game.square(toSquare).getPiece();
-							if(piece_ != null)
+							Square toSquare = _game.square(this.toSquare);
+							if(toSquare.hasPiece())
 							{
-								an.append(piece_.type.getDisplayChar(language));
+								an.append(toSquare.pieceType.getDisplayChar(language));
 							}
 						}
 					}
@@ -826,7 +789,7 @@ public class Move
 					an.append("=");
 					if(variation == AlgebraicNotationVariation.FAN)
 					{
-						an.append(piece.color == Color.WHITE ? this.promoteTo.whiteSymbol : this.promoteTo.blackSymbol);
+						an.append(fromSquare.pieceColor == Color.WHITE ? this.promoteTo.whiteSymbol : this.promoteTo.blackSymbol);
 					}
 					else
 					{
@@ -851,7 +814,7 @@ public class Move
 	{
 		if(o2 instanceof Move)
 		{
-			return this.fromSquare.equals(((Move) o2).fromSquare) && this.toSquare.equals(((Move) o2).toSquare) && ((this.promoteTo == null && ((Move) o2).promoteTo == null) || (this.promoteTo != null && ((Move) o2).promoteTo != null && this.promoteTo.equals(((Move) o2).promoteTo))) && this.isEnPassant == ((Move) o2).isEnPassant && this.castlingType == ((Move) o2).castlingType;
+			return this.fromSquare.coordinateEquals(((Move) o2).fromSquare) && this.toSquare.coordinateEquals(((Move) o2).toSquare) && ((this.promoteTo == null && ((Move) o2).promoteTo == null) || (this.promoteTo != null && ((Move) o2).promoteTo != null && this.promoteTo.equals(((Move) o2).promoteTo))) && this.isEnPassant == ((Move) o2).isEnPassant && this.castlingType == ((Move) o2).castlingType;
 		}
 		return false;
 	}

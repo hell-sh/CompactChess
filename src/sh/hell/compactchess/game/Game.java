@@ -26,7 +26,7 @@ public class Game
 {
 	public static final short MAX_SCORE = 12800;
 	public final ArrayList<Move> moves = new ArrayList<>();
-	public final ArrayList<Piece> pieces = new ArrayList<>();
+	public final ArrayList<Square> pieces = new ArrayList<>();
 	final public TreeMap<String, String> tags = new TreeMap<>(new PGNTagComparator());
 	final HashMap<String, Integer> repetitionPostitions = new HashMap<>();
 	public Game start;
@@ -564,14 +564,13 @@ public class Game
 				byte kingFile = 8;
 				synchronized(this.pieces)
 				{
-					for(Piece p : this.pieces)
+					for(Square s : this.pieces)
 					{
-						if(p.color == toMove && p.type == PieceType.KING)
+						if(s.pieceColor == toMove && s.pieceType == PieceType.KING)
 						{
-							Square s = p.getSquare();
 							if(s.rank == rank)
 							{
-								kingFile = p.getSquare().file;
+								kingFile = s.file;
 							}
 						}
 					}
@@ -583,11 +582,10 @@ public class Game
 					{
 						synchronized(this.pieces)
 						{
-							for(Piece p : this.pieces)
+							for(Square s : this.pieces)
 							{
-								if(p.color == toMove && p.type == PieceType.ROOK)
+								if(s.pieceColor == toMove && s.pieceType == PieceType.ROOK)
 								{
-									Square s = p.getSquare();
 									if(s.rank == rank && s.file < kingFile)
 									{
 										rookSquare = s.getAlgebraicNotation();
@@ -601,11 +599,10 @@ public class Game
 					{
 						synchronized(this.pieces)
 						{
-							for(Piece p : this.pieces)
+							for(Square s : this.pieces)
 							{
-								if(p.color == toMove && p.type == PieceType.ROOK)
+								if(s.pieceColor == toMove && s.pieceType == PieceType.ROOK)
 								{
-									Square s = p.getSquare();
 									if(s.rank == rank && s.file > kingFile)
 									{
 										rookSquare = s.getAlgebraicNotation();
@@ -703,12 +700,11 @@ public class Game
 					byte rank = (byte) (Byte.valueOf(piece) - 1);
 					synchronized(this.pieces)
 					{
-						for(Piece p : this.pieces)
+						for(Square s : pieces)
 						{
-							final Square pSquare = p.getSquare();
-							if(p.color == this.toMove && p.type == pieceType && pSquare.rank == rank && this.getSquaresControlledBy(p).contains(toSquare) && new Move(this, p.getSquare(), toSquare, null, true).isLegal())
+							if(s.pieceColor == this.toMove && s.pieceType == pieceType && s.rank == rank && this.getSquaresControlledBy(s).contains(toSquare) && new Move(this, s, toSquare, null, true).isLegal())
 							{
-								squares.add(pSquare);
+								squares.add(s);
 							}
 						}
 					}
@@ -718,12 +714,11 @@ public class Game
 					byte file = Square.file(piece);
 					synchronized(this.pieces)
 					{
-						for(Piece p : this.pieces)
+						for(Square s : this.pieces)
 						{
-							final Square pSquare = p.getSquare();
-							if(p.color == this.toMove && p.type == pieceType && pSquare.file == file && this.getSquaresControlledBy(p).contains(toSquare) && new Move(this, p.getSquare(), toSquare, null, true).isLegal())
+							if(s.pieceColor == this.toMove && s.pieceType == pieceType && s.file == file && this.getSquaresControlledBy(s).contains(toSquare) && new Move(this, s, toSquare, null, true).isLegal())
 							{
-								squares.add(pSquare);
+								squares.add(s);
 							}
 						}
 					}
@@ -733,11 +728,11 @@ public class Game
 			{
 				synchronized(this.pieces)
 				{
-					for(Piece p : this.pieces)
+					for(Square s : this.pieces)
 					{
-						if(p.color == this.toMove && p.type == pieceType && this.getSquaresControlledBy(p).contains(toSquare) && new Move(this, p.getSquare(), toSquare, null, true).isLegal())
+						if(s.pieceColor == this.toMove && s.pieceType == pieceType && this.getSquaresControlledBy(s).contains(toSquare) && new Move(this, s, toSquare, null, true).isLegal())
 						{
-							squares.add(p.getSquare());
+							squares.add(s);
 						}
 					}
 				}
@@ -769,6 +764,31 @@ public class Game
 		return this;
 	}
 
+	public Game setPiece(Square square, Color color, PieceType pieceType)
+	{
+		synchronized(this.pieces)
+		{
+			square.pieceColor = color;
+			square.pieceType = pieceType;
+			if(!this.pieces.contains(square))
+			{
+				this.pieces.add(square);
+			}
+		}
+		return this;
+	}
+
+	public Game unsetPiece(Square square)
+	{
+		synchronized(this.pieces)
+		{
+			square.pieceColor = null;
+			square.pieceType = null;
+			this.pieces.remove(square);
+		}
+		return this;
+	}
+
 	public Game loadFEN(String fen) throws ChessException
 	{
 		if(this.status != GameStatus.BUILDING)
@@ -792,25 +812,32 @@ public class Game
 				throw new InvalidFENException("Not enough information in FEN: " + fen);
 			}
 			String pieceSequence = arr[0].replace("/", "").replace("8", "        ").replace("7", "       ").replace("6", "      ").replace("5", "     ").replace("4", "    ").replace("3", "   ").replace("2", "  ").replace("1", " ");
-			this.squares = new Square[64];
-			byte file = 0;
-			byte rank = 7;
-			for(char c : pieceSequence.toCharArray())
+			synchronized(this.pieces)
 			{
-				String s = String.valueOf(c);
-				Square square = new Square(file, rank);
-				if(!s.equals(" "))
+				this.pieces.clear();
+				this.squares = new Square[64];
+				byte file = 0;
+				byte rank = 7;
+				for(char c : pieceSequence.toCharArray())
 				{
-					Piece piece = new Piece(Language.ENGLISH.pieceFromChar(s), (s.toUpperCase().equals(s) ? Color.WHITE : Color.BLACK), square);
-					this.pieces.add(piece);
-					square.setPiece(piece);
-				}
-				this.squares[Square.index(file, rank)] = square;
-				file++;
-				if(file == 8)
-				{
-					rank--;
-					file = 0;
+					String s = String.valueOf(c);
+					final Square square;
+					if(s.equals(" "))
+					{
+						square = new Square(file, rank);
+					}
+					else
+					{
+						square = new Square(file, rank, (s.toUpperCase().equals(s) ? Color.WHITE : Color.BLACK), Language.ENGLISH.pieceFromChar(s));
+						this.pieces.add(square);
+					}
+					this.squares[Square.index(file, rank)] = square;
+					file++;
+					if(file == 8)
+					{
+						rank--;
+						file = 0;
+					}
 				}
 			}
 			this.toMove = ((arr[1].equals("w")) ? Color.WHITE : Color.BLACK);
@@ -939,9 +966,9 @@ public class Game
 			boolean definitelySufficientMaterial = false;
 			synchronized(pieces)
 			{
-				for(Piece p : pieces)
+				for(Square s : pieces)
 				{
-					if(p.type != PieceType.KING && p.type != PieceType.KNIGHT && p.type != PieceType.BISHOP)
+					if(s.pieceType != PieceType.KING && s.pieceType != PieceType.KNIGHT && s.pieceType != PieceType.BISHOP)
 					{
 						definitelySufficientMaterial = true;
 						break;
@@ -958,11 +985,11 @@ public class Game
 				boolean blackHasBlackBishop = false;
 				synchronized(pieces)
 				{
-					for(Piece p : pieces)
+					for(Square s : pieces)
 					{
-						if(p.type == PieceType.KNIGHT)
+						if(s.pieceType == PieceType.KNIGHT)
 						{
-							if(p.color == Color.WHITE)
+							if(s.pieceColor == Color.WHITE)
 							{
 								whiteKnights++;
 							}
@@ -971,11 +998,11 @@ public class Game
 								blackKnights++;
 							}
 						}
-						else if(p.type == PieceType.BISHOP)
+						else if(s.pieceType == PieceType.BISHOP)
 						{
-							if(p.color == Color.WHITE)
+							if(s.pieceColor == Color.WHITE)
 							{
-								if(p.getSquare().isWhite())
+								if(s.isWhite())
 								{
 									whiteHasWhiteBishop = true;
 								}
@@ -986,7 +1013,7 @@ public class Game
 							}
 							else
 							{
-								if(p.getSquare().isWhite())
+								if(s.isWhite())
 								{
 									blackHasWhiteBishop = true;
 								}
@@ -1009,9 +1036,9 @@ public class Game
 			boolean sufficientMaterial = false;
 			synchronized(pieces)
 			{
-				for(Piece p : pieces)
+				for(Square s : pieces)
 				{
-					if(p.type != PieceType.KING)
+					if(s.pieceType != PieceType.KING)
 					{
 						sufficientMaterial = true;
 						break;
@@ -1063,63 +1090,99 @@ public class Game
 		return squares[Square.index(file, rank)];
 	}
 
-	public Game insertPiece(final Piece piece, final Square square)
-	{
-		if(this.status != GameStatus.BUILDING)
-		{
-			this.exportable = false;
-		}
-		piece.setSquare(square);
-		square.setPiece(piece);
-		return this;
-	}
-
-	public ArrayList<Square> getSquaresControlledBy(Piece piece)
+	public ArrayList<Square> getPieces(Color owner)
 	{
 		final ArrayList<Square> squares = new ArrayList<>();
-		final Square square = piece.getSquare();
-		if(piece.type == PieceType.PAWN)
+		synchronized(this.pieces)
+		{
+			for(Square s : this.pieces)
+			{
+				if(s.pieceColor == owner)
+				{
+					squares.add(s);
+				}
+			}
+		}
+		return squares;
+	}
+
+	public ArrayList<Square> getPieces(Color owner, PieceType pieceType)
+	{
+		final ArrayList<Square> squares = new ArrayList<>();
+		synchronized(this.pieces)
+		{
+			for(Square s : this.pieces)
+			{
+				if(s.pieceColor == owner && s.pieceType == pieceType)
+				{
+					squares.add(s);
+				}
+			}
+		}
+		return squares;
+	}
+
+	public ArrayList<Square> getPieces(PieceType pieceType)
+	{
+		final ArrayList<Square> squares = new ArrayList<>();
+		synchronized(this.pieces)
+		{
+			for(Square s : this.pieces)
+			{
+				if(s.pieceType == pieceType)
+				{
+					squares.add(s);
+				}
+			}
+		}
+		return squares;
+	}
+
+	public ArrayList<Square> getSquaresControlledBy(Square square)
+	{
+		final ArrayList<Square> squares = new ArrayList<>();
+		if(square.pieceType == PieceType.PAWN)
 		{
 			final byte file = square.file;
 			final byte rank = square.rank;
 			Square square_;
-			if(piece.color == Color.WHITE ? rank < 7 : rank > 0)
+			if(square.pieceColor == Color.WHITE ? rank < 7 : rank > 0)
 			{
-				square_ = this.square(file, (byte) (rank + (piece.color == Color.WHITE ? 1 : -1)));
+				square_ = this.square(file, (byte) (rank + (square.pieceColor == Color.WHITE ? 1 : -1)));
 				if(!square_.hasPiece())
 				{
-					squares.add(this.square(file, (byte) (rank + (piece.color == Color.WHITE ? 1 : -1))));
-					if((rank == 1 && piece.color == Color.WHITE) || (rank == 6 && piece.color == Color.BLACK))
+					squares.add(this.square(file, (byte) (rank + (square.pieceColor == Color.WHITE ? 1 : -1))));
+					if((rank == 1 && square.pieceColor == Color.WHITE) || (rank == 6 && square.pieceColor == Color.BLACK))
 					{
-						square_ = this.square(file, (byte) (rank + (piece.color == Color.WHITE ? 2 : -2)));
+						square_ = this.square(file, (byte) (rank + (square.pieceColor == Color.WHITE ? 2 : -2)));
 						if(!square_.hasPiece())
 						{
-							squares.add(this.square(file, (byte) (rank + (piece.color == Color.WHITE ? 2 : -2))));
+							squares.add(this.square(file, (byte) (rank + (square.pieceColor == Color.WHITE ? 2 : -2))));
 						}
 					}
 				}
 			}
-			if(piece.color == Color.WHITE ? rank < 7 : rank > 0)
+			if(square.pieceColor == Color.WHITE ? rank < 7 : rank > 0)
 			{
 				if(file > 0)
 				{
-					square_ = this.square((byte) (file - 1), (byte) (rank + (piece.color == Color.WHITE ? 1 : -1)));
-					if((square_.hasPiece() && square_.getPiece().color != piece.color) || square_.equals(this.enPassantSquare))
+					square_ = this.square((byte) (file - 1), (byte) (rank + (square.pieceColor == Color.WHITE ? 1 : -1)));
+					if((square_.pieceColor == square.pieceColor.opposite()) || square_.equals(this.enPassantSquare))
 					{
 						squares.add(square_);
 					}
 				}
 				if(file < 7)
 				{
-					square_ = this.square((byte) (file + 1), (byte) (rank + (piece.color == Color.WHITE ? 1 : -1)));
-					if((square_.hasPiece() && square_.getPiece().color != piece.color) || square_.equals(this.enPassantSquare))
+					square_ = this.square((byte) (file + 1), (byte) (rank + (square.pieceColor == Color.WHITE ? 1 : -1)));
+					if(square_.pieceColor == square.pieceColor.opposite() || square_.equals(this.enPassantSquare))
 					{
 						squares.add(square_);
 					}
 				}
 			}
 		}
-		else if(piece.type == PieceType.KING)
+		else if(square.pieceType == PieceType.KING)
 		{
 			final byte file = square.file;
 			final byte rank = square.rank;
@@ -1134,7 +1197,7 @@ public class Game
 						if(rank_ >= 0 && rank_ < 8)
 						{
 							final Square square_ = this.square(file_, rank_);
-							if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+							if(square_.pieceColor != square.pieceColor)
 							{
 								squares.add(square_);
 							}
@@ -1143,14 +1206,14 @@ public class Game
 				}
 			}
 		}
-		else if(piece.type == PieceType.KNIGHT)
+		else if(square.pieceType == PieceType.KNIGHT)
 		{
 			if(square.rank > 1)
 			{
 				if(square.file > 0)
 				{
 					final Square square_ = this.square((byte) (square.file - 1), (byte) (square.rank - 2));
-					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					if(square_.pieceColor != square.pieceColor)
 					{
 						squares.add(square_);
 					}
@@ -1158,7 +1221,7 @@ public class Game
 				if(square.file < 7)
 				{
 					final Square square_ = this.square((byte) (square.file + 1), (byte) (square.rank - 2));
-					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					if(square_.pieceColor != square.pieceColor)
 					{
 						squares.add(square_);
 					}
@@ -1169,7 +1232,7 @@ public class Game
 				if(square.file > 0)
 				{
 					final Square square_ = this.square((byte) (square.file - 1), (byte) (square.rank + 2));
-					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					if(square_.pieceColor != square.pieceColor)
 					{
 						squares.add(square_);
 					}
@@ -1177,7 +1240,7 @@ public class Game
 				if(square.file < 7)
 				{
 					final Square square_ = this.square((byte) (square.file + 1), (byte) (square.rank + 2));
-					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					if(square_.pieceColor != square.pieceColor)
 					{
 						squares.add(square_);
 					}
@@ -1188,7 +1251,7 @@ public class Game
 				if(square.rank > 0)
 				{
 					final Square square_ = this.square((byte) (square.file - 2), (byte) (square.rank - 1));
-					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					if(square_.pieceColor != square.pieceColor)
 					{
 						squares.add(square_);
 					}
@@ -1196,7 +1259,7 @@ public class Game
 				if(square.rank < 7)
 				{
 					final Square square_ = this.square((byte) (square.file - 2), (byte) (square.rank + 1));
-					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					if(square_.pieceColor != square.pieceColor)
 					{
 						squares.add(square_);
 					}
@@ -1207,7 +1270,7 @@ public class Game
 				if(square.rank > 0)
 				{
 					final Square square_ = this.square((byte) (square.file + 2), (byte) (square.rank - 1));
-					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					if(square_.pieceColor != square.pieceColor)
 					{
 						squares.add(square_);
 					}
@@ -1215,7 +1278,7 @@ public class Game
 				if(square.rank < 7)
 				{
 					final Square square_ = this.square((byte) (square.file + 2), (byte) (square.rank + 1));
-					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					if(square_.pieceColor != square.pieceColor)
 					{
 						squares.add(square_);
 					}
@@ -1224,14 +1287,14 @@ public class Game
 		}
 		else
 		{
-			if(piece.type == PieceType.ROOK || piece.type == PieceType.QUEEN)
+			if(square.pieceType == PieceType.ROOK || square.pieceType == PieceType.QUEEN)
 			{
 				byte rank = square.rank;
 				while(rank < 7)
 				{
 					rank++;
 					final Square square_ = this.square(square.file, rank);
-					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					if(square_.pieceColor != square.pieceColor)
 					{
 						squares.add(square_);
 					}
@@ -1245,7 +1308,7 @@ public class Game
 				{
 					rank--;
 					final Square square_ = this.square(square.file, rank);
-					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					if(square_.pieceColor != square.pieceColor)
 					{
 						squares.add(square_);
 					}
@@ -1259,7 +1322,7 @@ public class Game
 				{
 					file++;
 					final Square square_ = this.square(file, square.rank);
-					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					if(square_.pieceColor != square.pieceColor)
 					{
 						squares.add(square_);
 					}
@@ -1273,7 +1336,7 @@ public class Game
 				{
 					file--;
 					final Square square_ = this.square(file, square.rank);
-					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					if(square_.pieceColor != square.pieceColor)
 					{
 						squares.add(square_);
 					}
@@ -1283,7 +1346,7 @@ public class Game
 					}
 				}
 			}
-			if(piece.type == PieceType.BISHOP || piece.type == PieceType.QUEEN)
+			if(square.pieceType == PieceType.BISHOP || square.pieceType == PieceType.QUEEN)
 			{
 				byte file = square.file;
 				byte rank = square.rank;
@@ -1292,7 +1355,7 @@ public class Game
 					file++;
 					rank++;
 					final Square square_ = this.square(file, rank);
-					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					if(square_.pieceColor != square.pieceColor)
 					{
 						squares.add(square_);
 					}
@@ -1308,7 +1371,7 @@ public class Game
 					file++;
 					rank--;
 					final Square square_ = this.square(file, rank);
-					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					if(square_.pieceColor != square.pieceColor)
 					{
 						squares.add(square_);
 					}
@@ -1324,7 +1387,7 @@ public class Game
 					file--;
 					rank++;
 					final Square square_ = this.square(file, rank);
-					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					if(square_.pieceColor != square.pieceColor)
 					{
 						squares.add(square_);
 					}
@@ -1340,7 +1403,7 @@ public class Game
 					file--;
 					rank--;
 					final Square square_ = this.square(file, rank);
-					if(!square_.hasPiece() || square_.getPiece().color != piece.color)
+					if(square_.pieceColor != square.pieceColor)
 					{
 						squares.add(square_);
 					}
@@ -1357,46 +1420,37 @@ public class Game
 	public ArrayList<Square> getSquaresControlledBy(Color color)
 	{
 		final ArrayList<Square> squares = new ArrayList<>();
-		synchronized(this.pieces)
+		for(Square s : this.getPieces(color))
 		{
-			for(Piece p : this.pieces)
-			{
-				if(p.color == color)
-				{
-					squares.addAll(this.getSquaresControlledBy(p));
-				}
-			}
+			squares.addAll(this.getSquaresControlledBy(s));
 		}
 		return squares;
 	}
 
-	public ArrayList<Piece> getControllers(Square square)
+	public ArrayList<Square> getControllers(Square square)
 	{
-		final ArrayList<Piece> controllers = new ArrayList<>();
+		final ArrayList<Square> controllers = new ArrayList<>();
 		synchronized(this.pieces)
 		{
-			for(Piece p : pieces)
+			for(Square s : pieces)
 			{
-				if(this.getSquaresControlledBy(p).contains(square))
+				if(this.getSquaresControlledBy(s).contains(square))
 				{
-					controllers.add(p);
+					controllers.add(s);
 				}
 			}
 		}
 		return controllers;
 	}
 
-	public ArrayList<Piece> getControllers(Square square, Color color)
+	public ArrayList<Square> getControllers(Square square, Color by)
 	{
-		final ArrayList<Piece> controllers = new ArrayList<>();
-		synchronized(this.pieces)
+		final ArrayList<Square> controllers = new ArrayList<>();
+		for(Square s : this.getPieces(by))
 		{
-			for(Piece p : pieces)
+			if(s.pieceColor == by && this.getSquaresControlledBy(s).contains(square))
 			{
-				if(p.color == color && this.getSquaresControlledBy(p).contains(square))
-				{
-					controllers.add(p);
-				}
+				controllers.add(s);
 			}
 		}
 		return controllers;
@@ -1461,20 +1515,13 @@ public class Game
 		{
 			return false;
 		}
-		synchronized(pieces)
+		for(Square s : this.getPieces(this.toMove))
 		{
-			for(Piece p : pieces)
+			for(Square s_ : this.getSquaresControlledBy(s))
 			{
-				if(p.color == this.toMove)
+				if(new Move(this, s, s_, null, false).isLegal())
 				{
-					final Square s = p.getSquare();
-					for(Square s_ : this.getSquaresControlledBy(p))
-					{
-						if(new Move(this, s, s_, null, true).isLegal())
-						{
-							return false;
-						}
-					}
+					return false;
 				}
 			}
 		}
@@ -1501,73 +1548,34 @@ public class Game
 		}
 		else if(this.variant == Variant.KING_OF_THE_HILL)
 		{
-			synchronized(this.pieces)
+			Square s = this.getPieces(this.toMove.opposite(), PieceType.KING).get(0);
+			if((s.file == 3 || s.file == 4) && (s.rank == 3 || s.rank == 4))
 			{
-				for(Piece p : this.pieces)
-				{
-					if(p.color != this.toMove && p.type == PieceType.KING)
-					{
-						byte file = p.getSquare().file;
-						byte rank = p.getSquare().rank;
-						if((file == 3 || file == 4) && (rank == 3 || rank == 4))
-						{
-							return true;
-						}
-					}
-				}
+				return true;
 			}
 		}
 		else if(this.variant == Variant.RACING_KINGS)
 		{
-			synchronized(this.pieces)
-			{
-				for(Piece p : this.pieces)
-				{
-					if(p.color != this.toMove && p.type == PieceType.KING && p.getSquare().rank == 7)
-					{
-						return true;
-					}
-				}
-			}
-			return false;
+			return this.getPieces(this.toMove.opposite(), PieceType.KING).get(0).rank == 7;
 		}
 		else if(this.variant == Variant.HORDE && this.toMove == Color.WHITE)
 		{
-			synchronized(this.pieces)
+			if(this.getPieces(Color.WHITE).size() == 0)
 			{
-				boolean whiteHasPieces = false;
-				for(Piece p : this.pieces)
-				{
-					if(p.color == Color.WHITE)
-					{
-						whiteHasPieces = true;
-						break;
-					}
-				}
-				if(!whiteHasPieces)
-				{
-					return true;
-				}
+				return true;
 			}
 		}
 		if(!isCheck)
 		{
 			return this.variant == Variant.ANTICHESS && isStalemate(false);
 		}
-		synchronized(this.pieces)
+		for(Square s : this.getPieces(this.toMove))
 		{
-			for(Piece p : this.pieces)
+			for(Square s_ : this.getSquaresControlledBy(s))
 			{
-				if(p.color == this.toMove)
+				if(!new Move(this, s, s_, null, true).commitTo(this.copy(), true).opponentToMove().isCheck())
 				{
-					final Square s = p.getSquare();
-					for(Square s_ : this.getSquaresControlledBy(p))
-					{
-						if(!new Move(this, s, s_, null, true).commitTo(this.copy(), true).opponentToMove().isCheck())
-						{
-							return false;
-						}
-					}
+					return false;
 				}
 			}
 		}
@@ -1622,22 +1630,12 @@ public class Game
 
 	public boolean isCheck()
 	{
-		synchronized(this.pieces)
+		final ArrayList<Square> squaresControlledByOpponent = this.getSquaresControlledBy(this.toMove.opposite());
+		for(Square s : this.getPieces(this.toMove, PieceType.KING))
 		{
-			final ArrayList<Square> squaresControlledByOpponent = this.getSquaresControlledBy(this.toMove.opposite());
-			for(Piece p : pieces)
+			if(squaresControlledByOpponent.contains(s))
 			{
-				if(p.color == this.toMove && p.type == PieceType.KING)
-				{
-					Square kingSquare = p.getSquare();
-					for(Square s : squaresControlledByOpponent)
-					{
-						if(s.equals(kingSquare))
-						{
-							return true;
-						}
-					}
-				}
+				return true;
 			}
 		}
 		return false;
@@ -1667,18 +1665,18 @@ public class Game
 			for(byte file = 0; file < 8; file++)
 			{
 				Square square = this.square(file, rank);
-				if(!square.hasPiece())
-				{
-					emptySquares++;
-				}
-				else
+				if(square.hasPiece())
 				{
 					if(emptySquares > 0)
 					{
 						sb.append(emptySquares);
 						emptySquares = 0;
 					}
-					sb.append(square.getPiece().getCharacter(Language.ENGLISH));
+					sb.append(square.getCharacter(Language.ENGLISH));
+				}
+				else
+				{
+					emptySquares++;
 				}
 			}
 			if(emptySquares > 0)
@@ -1741,40 +1739,40 @@ public class Game
 		{
 			return;
 		}
-		Piece piece = square((byte) 4, (byte) 0).getPiece();
-		if(piece == null || piece.type != PieceType.KING || piece.color != Color.WHITE)
+		Square square = square((byte) 4, (byte) 0);
+		if(square.pieceType != PieceType.KING || square.pieceColor != Color.WHITE)
 		{
 			whiteCanCastle = false;
 			whiteCanCastleQueenside = false;
 		}
 		else
 		{
-			piece = square((byte) 7, (byte) 0).getPiece();
-			if(piece == null || piece.type != PieceType.ROOK || piece.color != Color.WHITE)
+			square = square((byte) 7, (byte) 0);
+			if(square.pieceType != PieceType.ROOK || square.pieceColor != Color.WHITE)
 			{
 				whiteCanCastle = false;
 			}
-			piece = square((byte) 0, (byte) 0).getPiece();
-			if(piece == null || piece.type != PieceType.ROOK || piece.color != Color.WHITE)
+			square = square((byte) 0, (byte) 0);
+			if(square.pieceType != PieceType.ROOK || square.pieceColor != Color.WHITE)
 			{
 				whiteCanCastleQueenside = false;
 			}
 		}
-		piece = square((byte) 4, (byte) 7).getPiece();
-		if(piece == null || piece.type != PieceType.KING || piece.color != Color.BLACK)
+		square = square((byte) 4, (byte) 7);
+		if(square.pieceType != PieceType.KING || square.pieceColor != Color.BLACK)
 		{
 			blackCanCastle = false;
 			blackCanCastleQueenside = false;
 		}
 		else
 		{
-			piece = square((byte) 7, (byte) 7).getPiece();
-			if(piece == null || piece.type != PieceType.ROOK || piece.color != Color.BLACK)
+			square = square((byte) 7, (byte) 7);
+			if(square.pieceType != PieceType.ROOK || square.pieceColor != Color.BLACK)
 			{
 				blackCanCastle = false;
 			}
-			piece = square((byte) 0, (byte) 7).getPiece();
-			if(piece == null || piece.type != PieceType.ROOK || piece.color != Color.BLACK)
+			square = square((byte) 0, (byte) 7);
+			if(square.pieceType != PieceType.ROOK || square.pieceColor != Color.BLACK)
 			{
 				blackCanCastleQueenside = false;
 			}
@@ -2154,30 +2152,23 @@ public class Game
 	public ArrayList<Move> getPossibleMoves(boolean includeIllegal) throws ChessException
 	{
 		final ArrayList<Move> moves = new ArrayList<>();
-		synchronized(this.pieces)
+		for(Square _s : this.getPieces(this.toMove))
 		{
-			for(Piece p : this.pieces)
+			for(Square s : this.getSquaresControlledBy(_s))
 			{
-				if(p.color == this.toMove)
+				Move m = new Move(this, _s, s, null, true);
+				if(includeIllegal || m.isLegal())
 				{
-					Square _s = p.getSquare();
-					for(Square s : this.getSquaresControlledBy(p))
+					if(s.pieceType == PieceType.PAWN && (toMove == Color.WHITE ? s.rank == 7 : s.rank == 0))
 					{
-						Move m = new Move(this, _s, s, null, true);
-						if(includeIllegal || m.isLegal())
+						for(PieceType pt : this.variant.getPossiblePromotions())
 						{
-							if(p.type == PieceType.PAWN && (m.toSquare.rank == 0 || m.toSquare.rank == 7))
-							{
-								for(PieceType pt : this.variant.getPossiblePromotions())
-								{
-									moves.add(new Move(this, _s, s, pt, true));
-								}
-							}
-							else
-							{
-								moves.add(m);
-							}
+							moves.add(new Move(this, _s, s, pt, true));
 						}
+					}
+					else
+					{
+						moves.add(m);
 					}
 				}
 			}
@@ -2252,31 +2243,39 @@ public class Game
 		return moves;
 	}
 
-	public ArrayList<Piece> getAttackers(Piece piece)
+	public ArrayList<Square> getAttackers(Square square)
 	{
-		return this.getControllers(piece.getSquare(), piece.color.opposite());
-	}
-
-	public ArrayList<Piece> getDefenders(Piece piece)
-	{
-		return this.getControllers(piece.getSquare(), piece.color);
-	}
-
-	public boolean isHanging(Piece piece)
-	{
-		byte attackers = 0;
-		for(Piece p : getControllers(piece.getSquare()))
+		if(square.hasPiece())
 		{
-			if(p.color == piece.color)
+			return this.getControllers(square, square.pieceColor.opposite());
+		}
+		return new ArrayList<>();
+	}
+
+	public ArrayList<Square> getDefenders(Square square)
+	{
+		if(square.hasPiece())
+		{
+			return this.getControllers(square, square.pieceColor);
+		}
+		return new ArrayList<>();
+	}
+
+	public boolean isHanging(Square square)
+	{
+		boolean attacked = false;
+		for(Square s : this.getControllers(square))
+		{
+			if(s.pieceColor == square.pieceColor)
 			{
 				return false;
 			}
-			else
+			else if(!attacked)
 			{
-				attackers++;
+				attacked = true;
 			}
 		}
-		return attackers > 0;
+		return attacked;
 	}
 
 	public short getMaterialScore(Color perspective)
@@ -2285,15 +2284,15 @@ public class Game
 		short blackscore = 0;
 		synchronized(this.pieces)
 		{
-			for(Piece p : this.pieces)
+			for(Square s : this.pieces)
 			{
-				if(p.color == Color.WHITE)
+				if(s.pieceColor == Color.WHITE)
 				{
-					whitescore += p.getValue();
+					whitescore += s.getMaterialValue();
 				}
 				else
 				{
-					blackscore += p.getValue();
+					blackscore += s.getMaterialValue();
 				}
 			}
 		}
@@ -2310,15 +2309,9 @@ public class Game
 	public short getMaterialScoreOf(Color color)
 	{
 		short score = 0;
-		synchronized(this.pieces)
+		for(Square s : this.getPieces(color))
 		{
-			for(Piece p : this.pieces)
-			{
-				if(p.color == color)
-				{
-					score += p.getValue();
-				}
-			}
+			score += s.getMaterialValue();
 		}
 		return score;
 	}
@@ -2462,9 +2455,8 @@ public class Game
 				Square square = this.square(file, rank);
 				if(square.hasPiece())
 				{
-					Piece p = square.getPiece();
-					String piece_svg = p.getSVG();
-					if(isCheck && p.color == this.toMove && p.type == PieceType.KING)
+					String piece_svg = square.getSVG();
+					if(isCheck && square.pieceColor == this.toMove && square.pieceType == PieceType.KING)
 					{
 						svg.append("<g transform=\"translate(").append(file * 45).append(",").append(315 - (rank * 45)).append(")\"><rect width=\"45\" height=\"45\" style=\"fill:rgba(255,0,0,.56)\"></rect></g>");
 					}

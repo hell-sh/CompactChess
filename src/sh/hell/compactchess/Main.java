@@ -25,7 +25,6 @@ public class Main
 		main();
 	}
 
-	@SuppressWarnings("ResultOfMethodCallIgnored")
 	private static void main() throws IOException, ChessException, InterruptedException
 	{
 		System.out.println("# CompactChess");

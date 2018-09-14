@@ -7,7 +7,8 @@ public class Square
 {
 	public final byte file;
 	public final byte rank;
-	private Piece piece;
+	public Color pieceColor = null;
+	public PieceType pieceType = null;
 
 	Square(final byte file, final byte rank)
 	{
@@ -15,11 +16,12 @@ public class Square
 		this.rank = rank;
 	}
 
-	Square(final byte file, final byte rank, final Piece piece)
+	Square(final byte file, final byte rank, Color pieceColor, final PieceType pieceType)
 	{
 		this.file = file;
 		this.rank = rank;
-		this.piece = piece;
+		this.pieceColor = pieceColor;
+		this.pieceType = pieceType;
 	}
 
 	static byte index(final byte file, final byte rank)
@@ -79,25 +81,10 @@ public class Square
 
 	public boolean hasPiece()
 	{
-		return this.piece != null;
+		return this.pieceType != null;
 	}
 
-	public Piece getPiece()
-	{
-		return piece;
-	}
-
-	void setPiece(final Piece piece)
-	{
-		this.piece = piece;
-	}
-
-	void unsetPiece()
-	{
-		this.piece = null;
-	}
-
-	byte index()
+	public byte index()
 	{
 		return Square.index(file, rank);
 	}
@@ -109,14 +96,11 @@ public class Square
 
 	public String getCharacter(Language language)
 	{
-		if(this.piece == null)
+		if(this.hasPiece())
 		{
-			return " ";
+			return (pieceColor == Color.WHITE ? pieceType.getDisplayChar(language).toUpperCase() : pieceType.getDisplayChar(language).toLowerCase());
 		}
-		else
-		{
-			return this.getPiece().getCharacter(language);
-		}
+		return " ";
 	}
 
 	public boolean isWhite()
@@ -131,14 +115,25 @@ public class Square
 
 	public String getSymbol(final boolean invertColor)
 	{
-		if(this.piece == null)
+		if(this.hasPiece())
 		{
-			return ((invertColor ? isBlack() : isWhite()) ? "□" : "■");
+			return ((pieceColor == Color.WHITE) ^ invertColor ? pieceType.whiteSymbol : pieceType.blackSymbol);
 		}
-		else
+		return (isWhite() ^ invertColor ? "□" : "■");
+	}
+
+	public String getSVG()
+	{
+		return (pieceColor == Color.WHITE ? pieceType.whiteSVG : pieceType.blackSVG);
+	}
+
+	public byte getMaterialValue()
+	{
+		if(this.pieceType != null)
 		{
-			return this.getPiece().getSymbol(invertColor);
+			return this.pieceType.materialValue;
 		}
+		return 0;
 	}
 
 	public String getFileChar()
@@ -155,36 +150,22 @@ public class Square
 
 	public String toString()
 	{
-		if(!this.hasPiece())
-		{
-			return toStringLite();
-		}
-		return "{Square " + getAlgebraicNotation() + " with " + getPiece().toStringLite() + "}";
-	}
-
-	public String toStringLite()
-	{
-		return "{Square " + getAlgebraicNotation() + "}";
+		return "{Square " + getAlgebraicNotation() + " containing " + pieceColor + " " + pieceType + "}";
 	}
 
 	public Square copy()
 	{
-		Square square = new Square(file, rank);
-		if(piece != null)
-		{
-			square.setPiece(getPiece().copy(square));
-			return square;
-		}
-		return square;
+		return new Square(file, rank, pieceColor, pieceType);
 	}
 
-	Square copy(final Piece piece)
+	public boolean coordinateEquals(final Object o2)
 	{
-		return new Square(file, rank, piece);
+		return o2 instanceof Square && this.file == ((Square) o2).file && this.rank == ((Square) o2).rank;
 	}
 
+	@Override
 	public boolean equals(final Object o2)
 	{
-		return o2 instanceof Square && (this.file == ((Square) o2).file && this.rank == ((Square) o2).rank);
+		return o2 instanceof Square && this.file == ((Square) o2).file && this.rank == ((Square) o2).rank && this.pieceColor == ((Square) o2).pieceColor && this.pieceType == ((Square) o2).pieceType;
 	}
 }

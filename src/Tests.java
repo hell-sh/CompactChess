@@ -10,7 +10,6 @@ import sh.hell.compactchess.game.Game;
 import sh.hell.compactchess.game.GameStatus;
 import sh.hell.compactchess.game.Language;
 import sh.hell.compactchess.game.Move;
-import sh.hell.compactchess.game.Piece;
 import sh.hell.compactchess.game.PieceType;
 import sh.hell.compactchess.game.Square;
 import sh.hell.compactchess.game.TimeControl;
@@ -26,6 +25,7 @@ import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertFalse;
 import static junit.framework.TestCase.assertNotNull;
 import static junit.framework.TestCase.assertTrue;
+import static junit.framework.TestCase.fail;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 
@@ -42,9 +42,9 @@ public class Tests
 		int uniqueSquares = 0;
 		for(Square square : squares)
 		{
-			if(!game.square(square).hasPiece() || game.square(square).getPiece().type != PieceType.KING)
+			if(square.pieceType != PieceType.KING)
 			{
-				game.insertPiece(new Piece(PieceType.KING, Color.WHITE), square);
+				game.setPiece(square, Color.WHITE, PieceType.KING);
 				uniqueSquares++;
 			}
 		}
@@ -56,25 +56,24 @@ public class Tests
 	public void enPassant() throws ChessException
 	{
 		System.out.println("En Passant\n");
-		Game game = new Game().loadFEN("8/8/8/8/1p6/8/P6P/8 w - -").start();
+		Game game = new Game().loadFEN("8/2p5/8/8/1p6/8/P7/8 b - -").start();
 		visualize(game);
-		game.uciMove("h2h3").commit();
+		game.uciMove("c7c6").commit();
 		visualize(game);
 		assertNull(game.enPassantSquare);
-		game.opponentToMove();
 		game.uciMove("a2a4").commit();
 		visualize(game);
 		assertEquals("a3", game.enPassantSquare.getAlgebraicNotation());
 		game.uciMove("b4a3").commit();
 		visualize(game);
-		synchronized(game.pieces)
-		{
-			assertEquals(2, game.pieces.size());
-			Piece piece = game.pieces.get(0);
-			assertEquals(PieceType.PAWN, piece.type);
-			assertEquals(Color.BLACK, piece.color);
-			assertEquals("a3", piece.getSquare().getAlgebraicNotation());
-		}
+		assertEquals(2, game.pieces.size());
+		assertTrue(game.square("c6").hasPiece());
+		game.unsetPiece(game.square("c6"));
+		assertEquals(1, game.pieces.size());
+		Square square = game.pieces.get(0);
+		assertEquals(PieceType.PAWN, square.pieceType);
+		assertEquals(Color.BLACK, square.pieceColor);
+		assertEquals("a3", square.getAlgebraicNotation());
 	}
 
 	@Test(timeout = 1000L)
@@ -83,32 +82,108 @@ public class Tests
 		System.out.println("Promotion\n");
 		Game game = new Game().loadFEN("8/7P/8/8/8/8/7p/8 w").start();
 		visualize(game);
-		assertEquals(2, game.pieces.size());
-		assertEquals(PieceType.PAWN, game.pieces.get(0).type);
-		assertEquals(Color.WHITE, game.pieces.get(0).color);
-		assertEquals(PieceType.PAWN, game.pieces.get(1).type);
-		assertEquals(Color.BLACK, game.pieces.get(1).color);
+		int whitePawns = 0;
+		int blackPawns = 0;
+		for(Square s : game.squares)
+		{
+			if(s.hasPiece())
+			{
+				if(s.pieceType == PieceType.PAWN)
+				{
+					if(s.pieceColor == Color.WHITE)
+					{
+						whitePawns++;
+					}
+					else
+					{
+						blackPawns++;
+					}
+				}
+				else
+				{
+					fail();
+				}
+			}
+		}
+		assertEquals(1, whitePawns);
+		assertEquals(1, blackPawns);
 		Move move = game.uciMove("h7h8q");
 		move.toUCI();
 		move.commit();
 		visualize(game);
-		assertEquals(2, game.pieces.size());
-		assertEquals(PieceType.QUEEN, game.pieces.get(0).type);
-		assertEquals(Color.WHITE, game.pieces.get(0).color);
+		blackPawns = 0;
+		int whiteQueens = 0;
+		for(Square s : game.pieces)
+		{
+			if(s.pieceType == PieceType.QUEEN)
+			{
+				assertEquals(Color.WHITE, s.pieceColor);
+				whiteQueens++;
+			}
+			else if(s.pieceType == PieceType.PAWN)
+			{
+				assertEquals(Color.BLACK, s.pieceColor);
+				blackPawns++;
+			}
+			else
+			{
+				fail();
+			}
+		}
+		assertEquals(1, whiteQueens);
+		assertEquals(1, blackPawns);
 		move = game.uciMove("h2h1q");
 		move.toUCI();
 		move.commit();
 		visualize(game);
-		assertEquals(2, game.pieces.size());
-		assertEquals(PieceType.QUEEN, game.pieces.get(1).type);
-		assertEquals(Color.BLACK, game.pieces.get(1).color);
+		whiteQueens = 0;
+		int blackQueens = 0;
+		for(Square s : game.pieces)
+		{
+			if(s.pieceType == PieceType.QUEEN)
+			{
+				if(s.pieceColor == Color.WHITE)
+				{
+					whiteQueens++;
+				}
+				else
+				{
+					blackQueens++;
+				}
+			}
+			else
+			{
+				fail();
+			}
+		}
+		assertEquals(1, whiteQueens);
+		assertEquals(1, blackQueens);
 		move = game.uciMove("h8h1");
 		move.toUCI();
 		move.commit();
 		visualize(game);
-		assertEquals(1, game.pieces.size());
-		assertEquals(PieceType.QUEEN, game.pieces.get(0).type);
-		assertEquals(Color.WHITE, game.pieces.get(0).color);
+		whiteQueens = 0;
+		blackQueens = 0;
+		for(Square s : game.pieces)
+		{
+			if(s.pieceType == PieceType.QUEEN)
+			{
+				if(s.pieceColor == Color.WHITE)
+				{
+					whiteQueens++;
+				}
+				else
+				{
+					blackQueens++;
+				}
+			}
+			else
+			{
+				fail();
+			}
+		}
+		assertEquals(1, whiteQueens);
+		assertEquals(1, blackPawns);
 	}
 
 	@Test(timeout = 1000L)
@@ -129,15 +204,12 @@ public class Tests
 		visualize(game);
 		assertEquals(CastlingType.QUEENSIDE, move.castlingType);
 		assertNotNull(move.getIllegalReason());
-		synchronized(game.pieces)
+		for(Square s : game.pieces)
 		{
-			for(Piece p : game.pieces)
+			if(s.pieceType == PieceType.ROOK && s.pieceColor == Color.WHITE)
 			{
-				if(p.type == PieceType.ROOK && p.color == Color.WHITE)
-				{
-					assertEquals(3, p.getSquare().file);
-					break;
-				}
+				assertEquals(3, s.file);
+				break;
 			}
 		}
 		move = game.uciMove("e8g8");
@@ -145,15 +217,12 @@ public class Tests
 		visualize(game);
 		assertEquals(CastlingType.KINGSIDE, move.castlingType);
 		assertNull(move.getIllegalReason());
-		synchronized(game.pieces)
+		for(Square s : game.pieces)
 		{
-			for(Piece p : game.pieces)
+			if(s.pieceType == PieceType.ROOK && s.pieceColor == Color.BLACK)
 			{
-				if(p.type == PieceType.ROOK && p.color == Color.BLACK)
-				{
-					assertEquals(5, p.getSquare().file);
-					break;
-				}
+				assertEquals(5, s.file);
+				break;
 			}
 		}
 		game = new Game().loadFEN("rn2k3/8/1R6/8/8/8/8/4K3 b q -").start();
@@ -173,11 +242,10 @@ public class Tests
 	{
 		Game game = new Game().loadFEN("rnbqkb1r/pppppppp/5n2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq -").start();
 		Square s = game.square("e4");
-		Piece p = s.getPiece();
 		assertEquals(1, game.getControllers(s).size());
-		assertEquals(1, game.getAttackers(p).size());
-		assertEquals(0, game.getDefenders(p).size());
-		assertTrue(game.isHanging(p));
+		assertEquals(1, game.getAttackers(s).size());
+		assertEquals(0, game.getDefenders(s).size());
+		assertTrue(game.isHanging(s));
 	}
 
 	@Test(timeout = 1000L)
@@ -221,10 +289,7 @@ public class Tests
 		System.out.println("Stalemate\n");
 		final Game game = new Game().loadFEN("k1K5/pp6/N7/8/8/8/8/7B b").start();
 		visualize(game);
-		assertFalse(game.isCheck());
 		assertEquals(EndReason.STALEMATE, game.endReason);
-		game.opponentToMove();
-		assertFalse(game.isCheck());
 	}
 
 	@Test(timeout = 1000L)
@@ -460,7 +525,7 @@ public class Tests
 		visualize(game);
 		assertFalse(game.uciMove("c5b5").isLegal());
 		final Move move = game.uciMove("c5d5");
-		assertTrue(move.isLegal());
+		assertNull(move.getIllegalReason());
 		move.commit();
 		visualize(game);
 		assertFalse(game.isCheck());
@@ -536,21 +601,15 @@ public class Tests
 		assertFalse(game.whiteCanCastle);
 		assertEquals(CastlingType.KINGSIDE, move.castlingType);
 		assertNull(move.getIllegalReason());
-		synchronized(game.pieces)
+		for(Square s : game.getPieces(Color.WHITE))
 		{
-			for(Piece p : game.pieces)
+			if(s.pieceType == PieceType.ROOK)
 			{
-				if(p.color == Color.WHITE)
-				{
-					if(p.type == PieceType.ROOK)
-					{
-						assertEquals(5, p.getSquare().file);
-					}
-					else if(p.type == PieceType.KING)
-					{
-						assertEquals(6, p.getSquare().file);
-					}
-				}
+				assertEquals(5, s.file);
+			}
+			else if(s.pieceType == PieceType.KING)
+			{
+				assertEquals(6, s.file);
 			}
 		}
 		assertTrue(game.blackCanCastleQueenside);
@@ -560,15 +619,12 @@ public class Tests
 		assertFalse(game.blackCanCastleQueenside);
 		assertEquals(CastlingType.QUEENSIDE, move.castlingType);
 		assertNull(move.getIllegalReason());
-		synchronized(game.pieces)
+		for(Square s : game.getPieces(Color.BLACK))
 		{
-			for(Piece p : game.pieces)
+			if(s.pieceType == PieceType.ROOK)
 			{
-				if(p.type == PieceType.ROOK && p.color == Color.BLACK)
-				{
-					assertEquals(3, p.getSquare().file);
-					break;
-				}
+				assertEquals(3, s.file);
+				break;
 			}
 		}
 		for(String fen : new String[]{"rk3r2/8/8/8/4R3/8/8/8 b q -", "r2kr3/8/8/8/8/8/8/8 b q -"})
@@ -582,15 +638,12 @@ public class Tests
 			assertFalse(game.blackCanCastleQueenside);
 			assertEquals(CastlingType.QUEENSIDE, move.castlingType);
 			assertNull(move.getIllegalReason());
-			synchronized(game.pieces)
+			for(Square s : game.getPieces(Color.BLACK))
 			{
-				for(Piece p : game.pieces)
+				if(s.pieceType == PieceType.ROOK && s.file < 4)
 				{
-					if(p.type == PieceType.ROOK && p.color == Color.BLACK)
-					{
-						assertEquals(3, p.getSquare().file);
-						break;
-					}
+					assertEquals(3, s.file);
+					break;
 				}
 			}
 		}
@@ -604,11 +657,11 @@ public class Tests
 		System.out.println("Possible Moves: Rook\n");
 		final Game game = new Game().loadFEN("8/5p2/8/8/8/8/8/2B2RN1 w").start();
 		final ArrayList<Square> squares = new ArrayList<>();
-		for(Piece piece : game.pieces)
+		for(Square s : game.pieces)
 		{
-			if(piece.type == PieceType.ROOK)
+			if(s.pieceType == PieceType.ROOK)
 			{
-				squares.addAll(game.getSquaresControlledBy(piece));
+				squares.addAll(game.getSquaresControlledBy(s));
 			}
 		}
 		evaluatePossibleMoves(8, game, squares);
@@ -620,11 +673,11 @@ public class Tests
 		System.out.println("Possible Moves: Pawn\n");
 		final Game game = new Game().loadFEN("8/8/8/4Pp2/8/8/P2P3P/8 w - f6 0 2").start();
 		final ArrayList<Square> squares = new ArrayList<>();
-		for(Piece piece : game.pieces)
+		for(Square s : game.pieces)
 		{
-			if(piece.color == Color.WHITE && piece.type == PieceType.PAWN)
+			if(s.pieceColor == Color.WHITE && s.pieceType == PieceType.PAWN)
 			{
-				squares.addAll(game.getSquaresControlledBy(piece));
+				squares.addAll(game.getSquaresControlledBy(s));
 			}
 		}
 		evaluatePossibleMoves(8, game, squares);
@@ -636,11 +689,11 @@ public class Tests
 		System.out.println("Possible Moves: King\n");
 		final Game game = new Game().loadFEN("7k/8/3k2k1/8/8/1k6/8/k7 w - -").start();
 		final ArrayList<Square> squares = new ArrayList<>();
-		for(Piece piece : game.pieces)
+		for(Square s : game.pieces)
 		{
-			if(piece.type == PieceType.KING)
+			if(s.pieceType == PieceType.KING)
 			{
-				squares.addAll(game.getSquaresControlledBy(piece));
+				squares.addAll(game.getSquaresControlledBy(s));
 			}
 		}
 		evaluatePossibleMoves(26, game, squares);
@@ -652,11 +705,11 @@ public class Tests
 		System.out.println("Possible Moves: Bishop\n");
 		final Game game = new Game().loadFEN("8/8/8/8/3B4/8/8/8 w").start();
 		final ArrayList<Square> squares = new ArrayList<>();
-		for(Piece piece : game.pieces)
+		for(Square s : game.pieces)
 		{
-			if(piece.type == PieceType.BISHOP)
+			if(s.pieceType == PieceType.BISHOP)
 			{
-				squares.addAll(game.getSquaresControlledBy(piece));
+				squares.addAll(game.getSquaresControlledBy(s));
 			}
 		}
 		evaluatePossibleMoves(13, game, squares);
@@ -668,11 +721,11 @@ public class Tests
 		System.out.println("Possible Moves: Queen\n");
 		final Game game = new Game().loadFEN("8/8/8/8/3Q4/8/8/8 w").start();
 		final ArrayList<Square> squares = new ArrayList<>();
-		for(Piece piece : game.pieces)
+		for(Square s : game.pieces)
 		{
-			if(piece.type == PieceType.QUEEN)
+			if(s.pieceType == PieceType.QUEEN)
 			{
-				squares.addAll(game.getSquaresControlledBy(piece));
+				squares.addAll(game.getSquaresControlledBy(s));
 			}
 		}
 		evaluatePossibleMoves(27, game, squares);
@@ -684,11 +737,11 @@ public class Tests
 		System.out.println("Possible Moves: Queen\n");
 		final Game game = new Game().loadFEN("8/1N4N1/8/8/3N4/8/1N4N1/8 w").start();
 		final ArrayList<Square> squares = new ArrayList<>();
-		for(Piece piece : game.pieces)
+		for(Square s : game.pieces)
 		{
-			if(piece.type == PieceType.KNIGHT)
+			if(s.pieceType == PieceType.KNIGHT)
 			{
-				squares.addAll(game.getSquaresControlledBy(piece));
+				squares.addAll(game.getSquaresControlledBy(s));
 			}
 		}
 		evaluatePossibleMoves(22, game, squares);

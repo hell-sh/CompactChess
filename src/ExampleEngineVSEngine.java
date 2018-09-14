@@ -18,12 +18,12 @@ public class ExampleEngineVSEngine
 		final String whiteName = "Stockfish 9";
 		final Engine whiteEngine = new Engine("stockfish_9_multivariant.exe", null, uciOptions, true);
 		//final String whiteName = "LCZero 594";
-		//final Engine whiteEngine = new Engine("lc0.exe", null, uciOptions, true).debug(true);
+		//final Engine whiteEngine = new Engine("lc0.exe", null, uciOptions, true);
 		//whiteEngine.evaluate(new Game().loadFEN("8/8/8/8/8/8/8/8 w - -").setTimed(1, 0).start()).awaitConclusion();
 		final String blackName = "Stockfish 9";
 		final Engine blackEngine = new Engine("stockfish_9_multivariant.exe", null, uciOptions, true);
 		//final String blackName = "LCZero 594";
-		//final Engine blackEngine = new Engine("lc0.exe", null, uciOptions, true).debug(true);
+		//final Engine blackEngine = new Engine("lc0.exe", null, uciOptions, true);
 		//blackEngine.evaluate(new Game().loadFEN("8/8/8/8/8/8/8/8 w - -").setTimed(1, 0).start()).awaitConclusion();
 		System.out.println("Engines are ready.");
 		try
@@ -31,7 +31,7 @@ public class ExampleEngineVSEngine
 			//noinspection InfiniteLoopStatement
 			do
 			{
-				final Game game = new Game().setTimed(15 * 1000, 0).setPlayerNames(whiteName, blackName).setTag("Event", "Engine VS Engine").start();
+				final Game game = new Game().setTimed(15000, 0).setPlayerNames(whiteName, blackName).setTag("Event", "Engine VS Engine").start();
 				FileWriter fw = new FileWriter("board.svg", false);
 				fw.write(game.toSVG());
 				fw.close();
@@ -43,7 +43,7 @@ public class ExampleEngineVSEngine
 					Color mover = game.toMove;
 					Engine engine = (mover == Color.WHITE ? whiteEngine : blackEngine);
 					final Move move;
-					move = engine.evaluate(game.resetMoveTime()).awaitConclusion().getBestMove();
+					move = engine.evaluate(game).awaitConclusion().getBestMove();
 					fw = new FileWriter("info.txt", false);
 					fw.write(whiteName + " VS " + blackName + "\n");
 					if(engine.score == 0 && game.canDrawBeClaimed())
