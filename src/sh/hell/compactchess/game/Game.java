@@ -1658,7 +1658,7 @@ public class Game
 
 	public String getPositionalFEN(final boolean compact)
 	{
-		StringBuilder sb = new StringBuilder();
+		final StringBuilder sb = new StringBuilder();
 		byte emptySquares = 0;
 		for(byte rank = 7; rank >= 0; rank--)
 		{
@@ -1886,6 +1886,23 @@ public class Game
 			tags.put("PlyCount", String.valueOf(this.plyCount - this.start.plyCount));
 		}
 		return tags;
+	}
+
+	public String toUCI()
+	{
+		final StringBuilder uci = new StringBuilder();
+		synchronized(moves)
+		{
+			if(moves.size() == 0)
+			{
+				return "";
+			}
+			for(Move m : moves)
+			{
+				uci.append(" ").append(m.toUCI());
+			}
+		}
+		return uci.toString().substring(1);
 	}
 
 	public String toPGN() throws ChessException
@@ -2472,7 +2489,7 @@ public class Game
 		final Game game = new Game();
 		try
 		{
-			game.loadFEN(this.getPositionalFEN());
+			game.loadFEN(this.getPositionalFEN(true));
 		}
 		catch(ChessException ignored)
 		{
@@ -2487,10 +2504,6 @@ public class Game
 		game.plyCount = plyCount;
 		game.variant = variant;
 		game.toMove = toMove;
-		if(enPassantSquare != null)
-		{
-			game.enPassantSquare = enPassantSquare.copy();
-		}
 		game.timeControl = timeControl;
 		game.status = status;
 		game.claimableDraw = claimableDraw;
@@ -2509,7 +2522,7 @@ public class Game
 	{
 		if(o2 instanceof Game)
 		{
-			if(this.getFEN(true).equals(((Game) o2).getFEN(true)) && ((this.start == null && ((Game) o2).start == null) || (this.start != null && ((Game) o2).start != null && this.start.getFEN(true).equals(((Game) o2).start.getFEN(true)))) && this.plyCount == ((Game) o2).plyCount && this.repetitionPostitions.equals(((Game) o2).repetitionPostitions) && this.variant.equals(((Game) o2).variant) && this.toMove.equals(((Game) o2).toMove) && this.timeControl.equals(((Game) o2).timeControl) && this.status == ((Game) o2).status && this.claimableDraw == ((Game) o2).claimableDraw && this.endReason == ((Game) o2).endReason && this.tags.entrySet().equals(((Game) o2).tags.entrySet()) && this.increment == ((Game) o2).increment && this.whitemsecs == ((Game) o2).whitemsecs && this.blackmsecs == ((Game) o2).blackmsecs && this.exportable == ((Game) o2).exportable && this.moves.size() == ((Game) o2).moves.size())
+			if(pieces.equals(((Game) o2).pieces) && (start == null ? ((Game) o2).start == null : start.getFEN(true).equals(((Game) o2).start.getFEN(true))) && plyCount == ((Game) o2).plyCount && repetitionPostitions.equals(((Game) o2).repetitionPostitions) && variant.equals(((Game) o2).variant) && toMove.equals(((Game) o2).toMove) && (enPassantSquare == null ? ((Game) o2).enPassantSquare == null : enPassantSquare.equals(((Game) o2).enPassantSquare)) && timeControl.equals(((Game) o2).timeControl) && status == ((Game) o2).status && claimableDraw == ((Game) o2).claimableDraw && endReason == ((Game) o2).endReason && tags.entrySet().equals(((Game) o2).tags.entrySet()) && increment == ((Game) o2).increment && whitemsecs == ((Game) o2).whitemsecs && blackmsecs == ((Game) o2).blackmsecs && whiteCanCastle == ((Game) o2).whiteCanCastle && whiteCanCastleQueenside == ((Game) o2).whiteCanCastleQueenside && blackCanCastle == ((Game) o2).blackCanCastle && blackCanCastleQueenside == ((Game) o2).blackCanCastleQueenside && drawPlyTimer == ((Game) o2).drawPlyTimer && exportable == ((Game) o2).exportable && moves.size() == ((Game) o2).moves.size())
 			{
 				for(int i = 0; i < this.moves.size(); i++)
 				{

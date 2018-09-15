@@ -69,7 +69,7 @@ public class Main
 	{
 		System.out.println("# Compact Chess > Convert Notation");
 		System.out.println();
-		System.out.println("What do you want to convert form?");
+		System.out.println("What do you want to convert from?");
 		System.out.println();
 		System.out.println("- [F]EN");
 		System.out.println("- [P]GN");
