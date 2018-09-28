@@ -1,5 +1,6 @@
 package sh.hell.compactchess.game;
 
+@SuppressWarnings({"WeakerAccess", "UnusedReturnValue", "unused"})
 public enum Language
 {
 	ENGLISH("P", "N", "B", "R", "Q", "K"),

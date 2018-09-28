@@ -44,7 +44,7 @@ public enum CGNTagMap
 
 	CGNTagMap()
 	{
-		this.since = CGNVersion.V2;
+		this(CGNVersion.V2);
 	}
 
 	CGNTagMap(CGNVersion since)

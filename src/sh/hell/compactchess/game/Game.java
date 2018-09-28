@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -387,7 +388,7 @@ public class Game
 		{
 			byteArr[i] = byteArrList.get(i);
 		}
-		return new String(byteArr, "UTF-8");
+		return new String(byteArr, StandardCharsets.UTF_8);
 	}
 
 	private static void processTag(Game game, String key, String val) throws ChessException
@@ -663,7 +664,7 @@ public class Game
 			String promoteChar = move.substring(move.length() - 1).toUpperCase();
 			for(PieceType pt : PieceType.values())
 			{
-				if(pt.getDisplayChar(language).equalsIgnoreCase(promoteChar) || pt.whiteSymbol.equals(promoteChar) || pt.blackSymbol.equals(promoteChar))
+				if(pt.getChar(language).equalsIgnoreCase(promoteChar) || pt.whiteSymbol.equals(promoteChar) || pt.blackSymbol.equals(promoteChar))
 				{
 					promoteTo = pt;
 					break;
@@ -678,7 +679,7 @@ public class Game
 		{
 			for(PieceType pt : PieceType.values())
 			{
-				if(pt.getNotationChar(language).equalsIgnoreCase(piece.substring(0, 1)) || pt.whiteSymbol.equals(piece.substring(0, 1)) || pt.blackSymbol.equals(piece.substring(0, 1)))
+				if(pt.getChar(language).equalsIgnoreCase(piece.substring(0, 1)) || pt.whiteSymbol.equals(piece.substring(0, 1)) || pt.blackSymbol.equals(piece.substring(0, 1)))
 				{
 					pieceType = pt;
 					piece = piece.substring(1);
@@ -1672,7 +1673,7 @@ public class Game
 						sb.append(emptySquares);
 						emptySquares = 0;
 					}
-					sb.append(square.getCharacter(Language.ENGLISH));
+					sb.append(square.getChar(Language.ENGLISH));
 				}
 				else
 				{
@@ -2372,7 +2373,7 @@ public class Game
 				}
 				else
 				{
-					sb.append(square(file, rank).getCharacter(useLetters));
+					sb.append(square(file, rank).getChar(useLetters));
 				}
 				if(whitesPerspective)
 				{

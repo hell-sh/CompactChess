@@ -536,42 +536,36 @@ public class Move
 				}
 				if(fromSquare.file != kingDestination)
 				{
-					if(fromSquare.file < kingDestination)
+					final boolean add = fromSquare.file < kingDestination;
+					byte file = fromSquare.file;
+					do
 					{
-						for(byte file = (byte) (fromSquare.file + 1); file <= kingDestination; file++)
+						if(add)
 						{
-							if(file != rookFile)
+							file++;
+						}
+						else
+						{
+							file--;
+						}
+						if(add ? file > kingDestination : file < kingDestination)
+						{
+							break;
+						}
+						if(file != rookFile)
+						{
+							final Square s = this._game.square(file, rank);
+							if(s.hasPiece())
 							{
-								Square s = this._game.square(file, rank);
-								if(s.hasPiece())
-								{
-									return "You can't castle because " + s.getAlgebraicNotation() + " is occupied";
-								}
-								if(opponentControlledSquares.contains(s))
-								{
-									return "You can't castle because " + s.getAlgebraicNotation() + " is under attack";
-								}
+								return "You can't castle because " + s.getAlgebraicNotation() + " is occupied";
+							}
+							if(opponentControlledSquares.contains(s))
+							{
+								return "You can't castle because " + s.getAlgebraicNotation() + " is under attack";
 							}
 						}
 					}
-					else
-					{
-						for(byte file = (byte) (fromSquare.file - 1); file >= kingDestination; file--)
-						{
-							if(file != rookFile)
-							{
-								Square s = this._game.square(file, rank);
-								if(s.hasPiece())
-								{
-									return "You can't castle because " + s.getAlgebraicNotation() + " is occupied";
-								}
-								if(opponentControlledSquares.contains(s))
-								{
-									return "You can't castle because " + s.getAlgebraicNotation() + " is under attack";
-								}
-							}
-						}
-					}
+					while(true);
 				}
 				if(rookFile != rookDestination)
 				{
@@ -659,7 +653,7 @@ public class Move
 		StringBuilder uci = new StringBuilder(fromSquare.getAlgebraicNotation()).append(toSquare.getAlgebraicNotation());
 		if(this.promoteTo != null)
 		{
-			uci.append(this.promoteTo.getNotationChar(Language.ENGLISH).toLowerCase());
+			uci.append(this.promoteTo.getChar(Language.ENGLISH).toLowerCase());
 		}
 		return uci.toString();
 	}
@@ -710,7 +704,7 @@ public class Move
 					}
 					else
 					{
-						an.append(fromSquare.pieceType.getNotationChar(language));
+						an.append(fromSquare.pieceType.getChar(language));
 					}
 				}
 				if(variation == AlgebraicNotationVariation.LAN || variation == AlgebraicNotationVariation.RAN)
@@ -774,7 +768,7 @@ public class Move
 							Square toSquare = _game.square(this.toSquare);
 							if(toSquare.hasPiece())
 							{
-								an.append(toSquare.pieceType.getDisplayChar(language));
+								an.append(toSquare.pieceType.getChar(language));
 							}
 						}
 					}
@@ -793,7 +787,7 @@ public class Move
 					}
 					else
 					{
-						an.append(this.promoteTo.getDisplayChar(language));
+						an.append(this.promoteTo.getChar(language));
 					}
 				}
 				break;

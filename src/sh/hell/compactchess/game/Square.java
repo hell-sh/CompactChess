@@ -94,11 +94,11 @@ public class Square
 		return this.getFileChar().toLowerCase() + (this.rank + 1);
 	}
 
-	public String getCharacter(Language language)
+	public String getChar(Language language)
 	{
 		if(this.hasPiece())
 		{
-			return (pieceColor == Color.WHITE ? pieceType.getDisplayChar(language).toUpperCase() : pieceType.getDisplayChar(language).toLowerCase());
+			return (pieceColor == Color.WHITE ? pieceType.getChar(language).toUpperCase() : pieceType.getChar(language).toLowerCase());
 		}
 		return " ";
 	}

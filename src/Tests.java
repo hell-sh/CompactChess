@@ -136,7 +136,17 @@ public class Tests
 		move.toUCI();
 		move.commit();
 		visualize(game);
-		whiteQueens = 0;
+		assertQueens(game, 1);
+		move = game.uciMove("h8h1");
+		move.toUCI();
+		move.commit();
+		visualize(game);
+		assertQueens(game, 0);
+	}
+
+	private void assertQueens(Game game, int expectedBlackQueens)
+	{
+		int whiteQueens = 0;
 		int blackQueens = 0;
 		for(Square s : game.pieces)
 		{
@@ -157,33 +167,7 @@ public class Tests
 			}
 		}
 		assertEquals(1, whiteQueens);
-		assertEquals(1, blackQueens);
-		move = game.uciMove("h8h1");
-		move.toUCI();
-		move.commit();
-		visualize(game);
-		whiteQueens = 0;
-		blackQueens = 0;
-		for(Square s : game.pieces)
-		{
-			if(s.pieceType == PieceType.QUEEN)
-			{
-				if(s.pieceColor == Color.WHITE)
-				{
-					whiteQueens++;
-				}
-				else
-				{
-					blackQueens++;
-				}
-			}
-			else
-			{
-				fail();
-			}
-		}
-		assertEquals(1, whiteQueens);
-		assertEquals(1, blackPawns);
+		assertEquals(expectedBlackQueens, blackQueens);
 	}
 
 	@Test(timeout = 1000L)
@@ -196,7 +180,7 @@ public class Tests
 		assertTrue(game.blackCanCastle);
 		assertFalse(game.blackCanCastleQueenside);
 		visualize(game);
-		assertFalse(game.uciMove("e8g8").isLegal());
+		assertNotNull(game.uciMove("e8g8").getIllegalReason());
 		game.uciMove("d5h5").commit();
 		visualize(game);
 		Move move = game.uciMove("e1c1");
@@ -230,11 +214,11 @@ public class Tests
 		assertNotNull(game.uciMove("e8c8").getIllegalReason());
 		move = game.uciMove("b8c6");
 		visualize(move.commit());
-		assertTrue(move.isLegal());
+		assertNull(move.getIllegalReason());
 		game.opponentToMove();
 		move = game.uciMove("e8c8");
 		visualize(move.commit());
-		assertTrue(move.isLegal());
+		assertNull(move.getIllegalReason());
 	}
 
 	@Test(timeout = 1000L)
@@ -257,7 +241,7 @@ public class Tests
 		final Move move = game.uciMove("g2g3");
 		move.commit(true, false);
 		visualize(game);
-		assertFalse(move.isLegal());
+		assertNotNull(move.getIllegalReason());
 	}
 
 	@Test(timeout = 1000L)
@@ -271,13 +255,13 @@ public class Tests
 		Move move = game.uciMove("e1g1");
 		move.commit();
 		visualize(game);
-		assertTrue(move.isLegal());
+		assertNull(move.getIllegalReason());
 		assertTrue(move.isCheck());
 		assertNotEquals(EndReason.CHECKMATE, game.endReason);
 		move = game.uciMove("f8f7");
 		move.commit(true, false);
 		visualize(game);
-		assertFalse(move.isLegal());
+		assertNotNull(move.getIllegalReason());
 		move.commit();
 		assertEquals(EndReason.RULES_INFRACTION, game.endReason);
 		assertEquals(GameStatus.BLACK_WINS, game.status);
@@ -523,7 +507,7 @@ public class Tests
 		System.out.println("Antichess\n");
 		final Game game = new Game(Variant.ANTICHESS).loadFEN("8/8/8/2Kp4/8/8/8/8 w").start();
 		visualize(game);
-		assertFalse(game.uciMove("c5b5").isLegal());
+		assertNotNull(game.uciMove("c5b5").getIllegalReason());
 		final Move move = game.uciMove("c5d5");
 		assertNull(move.getIllegalReason());
 		move.commit();
@@ -576,7 +560,7 @@ public class Tests
 		System.out.println("Racing Kings\n");
 		final Game game = new Game(Variant.RACING_KINGS).loadFEN("8/k6K/8/4q3/8/8/8/8 b").start();
 		visualize(game);
-		assertFalse(game.uciMove("e5h5").isLegal());
+		assertNotNull(game.uciMove("e5h5").getIllegalReason());
 		final Move move = game.uciMove("a7a8");
 		move.commit();
 		visualize(game);
