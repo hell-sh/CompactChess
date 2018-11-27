@@ -2354,6 +2354,9 @@ public class Game
 		return toString(whitesPerspective, noCoordinates, useLetters, false);
 	}
 
+	/**
+	 * @param useLetters The language to be used to display the pieces. Set to null to use Unicode symbols.
+	 */
 	public String toString(boolean whitesPerspective, boolean noCoordinates, Language useLetters, boolean invertColor)
 	{
 		final StringBuilder sb = new StringBuilder();
