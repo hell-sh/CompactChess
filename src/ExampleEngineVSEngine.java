@@ -16,13 +16,14 @@ public class ExampleEngineVSEngine
 		final HashMap<String, String> uciOptions = new HashMap<>();
 		uciOptions.put("Threads", "3");
 		final String whiteName = "Stockfish 9";
-		final Engine whiteEngine = new Engine("stockfish_9_multivariant.exe", null, uciOptions, true);
-		//final String whiteName = "LCZero 594";
+		final Engine whiteEngine = new Engine("stockfish 9.exe", null, uciOptions, true);
+		// We wait for lc0 to complete a quick task to make sure it won't suffer a time loss due to it still loading.
+		//final String whiteName = "LCZero 31685";
 		//final Engine whiteEngine = new Engine("lc0.exe", null, uciOptions, true);
 		//whiteEngine.evaluate(new Game().loadFEN("8/8/8/8/8/8/8/8 w - -").setTimed(1, 0).start()).awaitConclusion();
-		final String blackName = "Stockfish 9";
-		final Engine blackEngine = new Engine("stockfish_9_multivariant.exe", null, uciOptions, true);
-		//final String blackName = "LCZero 594";
+		final String blackName = "Stockfish 10";
+		final Engine blackEngine = new Engine("stockfish 10.exe", null, uciOptions, true);
+		//final String blackName = "LCZero 31685";
 		//final Engine blackEngine = new Engine("lc0.exe", null, uciOptions, true);
 		//blackEngine.evaluate(new Game().loadFEN("8/8/8/8/8/8/8/8 w - -").setTimed(1, 0).start()).awaitConclusion();
 		System.out.println("Engines are ready.");

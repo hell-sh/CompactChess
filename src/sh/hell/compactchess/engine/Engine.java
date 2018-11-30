@@ -24,7 +24,6 @@ public class Engine extends EngineBuilder
 	public final ArrayList<Variant> supportedVariants = new ArrayList<>();
 	final Object LOCK = new Object();
 	final Scanner input;
-	private final Thread thread;
 	private final Process process;
 	private final OutputStreamWriter output;
 	public boolean isReady = false;
@@ -39,7 +38,6 @@ public class Engine extends EngineBuilder
 	protected Engine(boolean doDebug)
 	{
 		super(doDebug);
-		this.thread = null;
 		this.process = null;
 		this.output = null;
 		this.input = null;
@@ -82,8 +80,7 @@ public class Engine extends EngineBuilder
 		}
 		output = new OutputStreamWriter(new BufferedOutputStream(process.getOutputStream()));
 		input = new Scanner(new InputStreamReader(process.getInputStream())).useDelimiter("\n");
-		thread = new Thread(this, "Engine " + binary);
-		thread.start();
+		this.start();
 		if(debug)
 		{
 			System.out.println("< uci");
@@ -352,19 +349,16 @@ public class Engine extends EngineBuilder
 	{
 		synchronized(LOCK)
 		{
-			if(thread == null)
-			{
-				return;
-			}
-			thread.interrupt();
+			super.interrupt();
 			goingInfinite = false;
 		}
 		try
 		{
 			awaitConclusion();
 		}
-		catch(InterruptedException | IOException ignored)
+		catch(InterruptedException | IOException e)
 		{
+			e.printStackTrace();
 		}
 	}
 
@@ -490,8 +484,9 @@ public class Engine extends EngineBuilder
 			}
 			while(!Thread.interrupted());
 		}
-		catch(Exception ignored)
+		catch(Exception e)
 		{
+			e.printStackTrace();
 		}
 		process.destroy();
 	}

@@ -477,7 +477,7 @@ public class Tests
 		visualize(game);
 		final HashMap<String, String> uciOptions = new HashMap<>();
 		uciOptions.put("Ponder", "true");
-		final Engine engine = new Engine("stockfish_9.exe", null, uciOptions, true);
+		final Engine engine = new Engine("stockfish 10.exe", null, uciOptions, true);
 		engine.evaluateDepth(game, 3).awaitConclusion();
 		assertNotNull(engine.getPonder());
 		assertEquals("e6d5", engine.getPonder().toUCI());
