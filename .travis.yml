@@ -1,4 +1,5 @@
 language: java
+dist: precise
 cache:
   directories:
   - $HOME/.m2
@@ -6,3 +7,6 @@ jdk:
 - oraclejdk7
 - oraclejdk8
 - openjdk11
+before_install:
+- wget https://storage.hell.sh/assets/stockfish_10_x64 -O "stockfish 10.exe"
+- chmod +x "stockfish 10.exe"
