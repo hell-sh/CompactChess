@@ -6,5 +6,5 @@ jdk:
 - oraclejdk8
 - openjdk11
 before_install:
-- wget https://storage.hell.sh/assets/stockfish_10_x64 -O "stockfish 10.exe"
-- chmod +x "stockfish 10.exe"
+- wget https://storage.hell.sh/assets/stockfish_10_x64
+- chmod +x stockfish_10_x64
