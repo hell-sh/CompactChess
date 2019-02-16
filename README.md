@@ -1,4 +1,4 @@
-# CompactChess
+# CompactChess [![Build Status](https://travis-ci.org/hell-sh/CompactChess.svg?branch=master)](https://travis-ci.org/hell-sh/CompactChess)
 
 CompactChess is a Java 7+ library for chess.
 
