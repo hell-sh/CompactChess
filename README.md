@@ -2,7 +2,7 @@
 
 CompactChess is a Java 7+ library for chess.
 
-- [More information](https://hell.sh/CompactChess)
+- [More information](https://compactchess.cc/)
 - [Downloads](https://github.com/hell-sh/CompactChess/releases)
 
 ## Maven
