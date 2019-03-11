@@ -2427,15 +2427,30 @@ public class Game
 
 	public String toSVG()
 	{
-		return this.toSVG(true, true);
+		return this.toSVG(DefaultPieceStyle.instance, true, true);
 	}
 
 	public String toSVG(boolean indicateLastMove)
 	{
-		return this.toSVG(indicateLastMove, true);
+		return this.toSVG(DefaultPieceStyle.instance, indicateLastMove, true);
 	}
 
 	public String toSVG(boolean indicateLastMove, boolean indicateCheck)
+	{
+		return this.toSVG(DefaultPieceStyle.instance, indicateLastMove, indicateCheck);
+	}
+
+	public String toSVG(PieceStyle pieceStyle)
+	{
+		return this.toSVG(pieceStyle, true, true);
+	}
+
+	public String toSVG(PieceStyle pieceStyle, boolean indicateLastMove)
+	{
+		return this.toSVG(pieceStyle, indicateLastMove, true);
+	}
+
+	public String toSVG(PieceStyle pieceStyle, boolean indicateLastMove, boolean indicateCheck)
 	{
 		StringBuilder svg = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\"><svg version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" viewBox=\"0 0 360 360\"><rect width=\"360\" height=\"360\" fill=\"#b58863\"/><g id=\"a\"><g id=\"b\"><g id=\"c\"><g id=\"d\"><rect width=\"45\" height=\"45\" fill=\"#f0d9b5\" id=\"e\"/><use x=\"90\" xlink:href=\"#e\"/></g><use x=\"180\" xlink:href=\"#d\"/></g><use x=\"45\" y=\"45\" xlink:href=\"#c\"/></g><use y=\"90\" xlink:href=\"#b\"/></g><use y=\"180\" xlink:href=\"#a\"/>");
 		if(indicateLastMove)
@@ -2476,7 +2491,7 @@ public class Game
 				Square square = this.square(file, rank);
 				if(square.hasPiece())
 				{
-					String piece_svg = square.getSVG();
+					String piece_svg = square.getSVG(pieceStyle);
 					if(isCheck && square.pieceColor == this.toMove && square.pieceType == PieceType.KING)
 					{
 						svg.append("<g transform=\"translate(").append(file * 45).append(",").append(315 - (rank * 45)).append(")\"><rect width=\"45\" height=\"45\" style=\"fill:rgba(255,0,0,.56)\"></rect></g>");

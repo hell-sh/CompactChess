@@ -187,7 +187,7 @@ public class Engine extends EngineBuilder
 			{
 				System.out.println("< " + position.toString());
 			}
-			output.write("" + position.append("\n").toString());
+			output.write(position.append("\n").toString());
 			if(evaluatingGame.timeControl != TimeControl.UNLIMITED)
 			{
 				command += " wtime " + evaluatingGame.whitemsecs + " btime " + evaluatingGame.blackmsecs + " winc " + evaluatingGame.increment + " binc " + evaluatingGame.increment;

@@ -1,4 +1,5 @@
 import sh.hell.compactchess.engine.Engine;
+import sh.hell.compactchess.exceptions.ChessException;
 import sh.hell.compactchess.game.Color;
 import sh.hell.compactchess.game.Game;
 import sh.hell.compactchess.game.GameStatus;
@@ -10,17 +11,17 @@ import java.util.HashMap;
 
 public class ExampleEngineVSEngine
 {
-	public static void main(String[] args) throws IOException, InterruptedException
+	public static void main(String[] args) throws IOException, InterruptedException, ChessException
 	{
 		System.out.println("Initializing engines...");
 		final HashMap<String, String> uciOptions = new HashMap<>();
-		uciOptions.put("Threads", "3");
-		final String whiteName = "Stockfish 9";
-		final Engine whiteEngine = new Engine("stockfish 9.exe", null, uciOptions, true);
+		uciOptions.put("Threads", "2");
+		//final String whiteName = "Stockfish 9";
+		//final Engine whiteEngine = new Engine("stockfish 9.exe", null, uciOptions, true);
 		// We wait for lc0 to complete a quick task to make sure it won't suffer a time loss due to it still loading.
-		//final String whiteName = "LCZero 31685";
-		//final Engine whiteEngine = new Engine("lc0.exe", null, uciOptions, true);
-		//whiteEngine.evaluate(new Game().loadFEN("8/8/8/8/8/8/8/8 w - -").setTimed(1, 0).start()).awaitConclusion();
+		final String whiteName = "LCZero";
+		final Engine whiteEngine = new Engine("lc0.exe", null, uciOptions, true);
+		whiteEngine.evaluate(new Game().loadFEN("8/8/8/8/8/8/8/8 w - -").setTimed(1, 0).start()).awaitConclusion();
 		final String blackName = "Stockfish 10";
 		final Engine blackEngine = new Engine("stockfish 10.exe", null, uciOptions, true);
 		//final String blackName = "LCZero 31685";
@@ -32,7 +33,7 @@ public class ExampleEngineVSEngine
 			//noinspection InfiniteLoopStatement
 			do
 			{
-				final Game game = new Game().setTimed(15000, 0).setPlayerNames(whiteName, blackName).setTag("Event", "Engine VS Engine").start();
+				final Game game = new Game().setTimed(300000, 0).setPlayerNames(whiteName, blackName).setTag("Event", "Engine VS Engine").start();
 				FileWriter fw = new FileWriter("board.svg", false);
 				fw.write(game.toSVG());
 				fw.close();

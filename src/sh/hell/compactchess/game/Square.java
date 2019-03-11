@@ -124,7 +124,12 @@ public class Square
 
 	public String getSVG()
 	{
-		return (pieceColor == Color.WHITE ? pieceType.whiteSVG : pieceType.blackSVG);
+		return this.getSVG(DefaultPieceStyle.instance);
+	}
+
+	public String getSVG(PieceStyle pieceStyle)
+	{
+		return pieceStyle.getSVG(pieceColor, pieceType);
 	}
 
 	public byte getMaterialValue()
